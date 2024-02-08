@@ -34,195 +34,187 @@
 ;
 ; Таблица дополнительных поддерживаемых кодов
 ;
-; +E		Clear screen			Clear whole screen GEMDOS/TOS extension
+; +E	Clear screen			Clear whole screen GEMDOS/TOS extension
 
-		CPU			8080
-		Z80SYNTAX	EXCLUSIVE
+	CPU			8080
+	Z80SYNTAX	EXCLUSIVE
 
-		INCLUDE		CFG.INC
+	INCLUDE		CFG.INC
 
-		ORG			TERM
+	ORG			TERM
 
 EK_ADR	EQU			0F75AH		;  Текущий адрес экрана в позиции курсора
 
-		; Entry Point
-		; --- START PROC TERM ---
-		PUSH		HL
-		PUSH		BC
-		PUSH		DE
-		PUSH		AF
-		LD			A,(EscSequenceState)
-		OR			A				; CP 00h
-		JP			NZ,ProcessEscSequence
-		LD			HL, PrintCAndExit
-		PUSH		HL
-		LD			A,C
-		CP			20h             ; ' '
-		;JP			NC,PrintCAndExit
-		RET			NC
-		CP			08h
-		;JP			Z,PrintCAndExit
-		RET			Z
-		CP			0Ah
-		;JP			Z,PrintCAndExit
-		RET			Z
-		CP			0Dh
-		;JP			Z,PrintCAndExit
-		RET			Z
-		POP			HL
-		CP			1Bh
-		JP			NZ,ExitTerm
-		LD			A,01h
-		LD			(EscSequenceState),A
+	PUSH	HL
+	PUSH	BC
+	PUSH	DE
+	PUSH	AF
+	LD	A,(EscSequenceState)
+	OR	A				; CP 00h
+	JP	NZ, ProcessEscSequence
+	LD	HL, PrintCAndExit	; Кладем в стек адрес возврата из эмулятора терминала
+	PUSH	HL
 
-		; --- START PROC ExitTerm ---
+	LD	A,C		
+	CP	20h             ; ' '
+	RET	NC		;JP NC,PrintCAndExit
+	CP	08h
+	RET	Z		;JP Z,PrintCAndExit
+	CP	0Ah
+	RET	Z		;JP Z,PrintCAndExit
+	CP	0Dh
+	RET	Z		;JP Z,PrintCAndExit
+	POP	HL
+	CP	1Bh
+	JP	NZ,ExitTerm
+	LD	A,01h
+	LD	(EscSequenceState),A
+
 ExitTerm:
-		POP			AF
-		POP			DE
-		POP			BC
-		POP			HL
-		RET
-
+	POP	AF
+	POP	DE
+	POP	BC
+	POP	HL
+	RET
+	
 ProcessEscSequence:
-		LD			A,(EscSequenceState)
-		CP			01h
-		JP			NZ,LF5B9
-		LD			A,C
-		CP			41h             ; 'A' Cursor up
-		JP			NZ,LF543
-		LD			C,19h
-EndEscSeqPrintCAndExit:
-		XOR			A				; LD      A,00h
-		LD			(EscSequenceState),A
-PrintCAndExit:
-		; JP      0FC47h			; todo Прямой вызов МОНИТОРА
-		CALL		0F809H
-		JP			ExitTerm
+	LD	A,(EscSequenceState)
+	CP	01h
+	JP	NZ,LF5B9
+	LD	A,C
+	CP	41h             ; 'A' Cursor up
+	JP	NZ,LF543
+	LD	C,19h
 
-LF543:	LD			HL, EndEscSeqPrintCAndExit
-		PUSH		HL
-		CP			42h             ; 'B' Cursor down
+EndEscSeqPrintCAndExit:
+	XOR	A
+	LD	(EscSequenceState),A
+
+PrintCAndExit:
+	CALL	0F809H
+	JP	ExitTerm
+
+LF543:	LD	HL, EndEscSeqPrintCAndExit
+	PUSH	HL
+	CP	42h             ; 'B' Cursor down
 ;		JP			NZ,LF54D
-		LD			C,1Ah
+	LD	C,1Ah
 ;		JP			EndEscSeqPrintCAndExit
 		;JP			Z, EndEscSeqPrintCAndExit
-		RET			Z
-
-LF54D:	CP			43h             ; 'C' Cursor right
+	RET	Z
+LF54D:	CP	43h             ; 'C' Cursor right
 ;		JP			NZ,LF557
-		LD			C,18h
+	LD	C,18h
 		;JP			Z, EndEscSeqPrintCAndExit
-		RET			Z
+	RET	Z
 
-LF557:	CP			44h             ; 'D' Cursor left
+LF557:	CP	44h             ; 'D' Cursor left
 ;		JP			NZ,LF561
-		LD			C,08h
+	LD	C,08h
 		;JP			Z, EndEscSeqPrintCAndExit
-		RET			Z
+	RET	Z
 
-LF561:	CP			45h             ; 'E' Clear Screen - расширение с Atari
+LF561:	CP	45h             ; 'E' Clear Screen - расширение с Atari
 ;		JP			NZ,LF56B
-		LD			C,1Fh
+	LD	C,1Fh
 		;JP			Z, EndEscSeqPrintCAndExit
-		RET			Z
+	RET	Z
 
-LF56B:	CP			48h             ; 'H' Cursor home
+LF56B:	CP	48h             ; 'H' Cursor home
 ;		JP			NZ,LF575
-		LD			C,0Ch
+	LD	C,0Ch
 		;JP			Z, EndEscSeqPrintCAndExit
-		RET			Z
+	RET	Z
+	POP	HL
 
-		POP			HL
+LF575:	CP	4Ah             ; 'J' Clear to end of screen
+	JP	NZ,LF58A
+	LD	HL,(EK_ADR)
+	LD	A,0F0h
+	LD	B,20h           ; ' '
+LF581:	LD	(HL),B
+	INC	HL
+	CP	H
+	JP	NZ,LF581
+	JP	ExitEscSequence
 
-LF575:	CP			4Ah             ; 'J' Clear to end of screen
-		JP			NZ,LF58A
-		LD			HL,(EK_ADR)
-		LD			A,0F0h
-		LD			B,20h           ; ' '
-LF581:	LD			(HL),B
-		INC			HL
-		CP			H
-		JP			NZ,LF581
-		JP			ExitEscSequence
-
-LF58A:	CP			4Bh             ; 'K' Clear to end of line
-		JP			NZ,LF5A3
-		LD			HL,(EK_ADR)
+LF58A:	CP	4Bh             ; 'K' Clear to end of line
+	JP	NZ,LF5A3
+	LD	HL,(EK_ADR)
 ;		XOR			A				; Это зачем?
-		LD			A,L
-		AND			0C0h
-		ADD			A,40h           ; '@'
-		LD			B,20h           ; ' '
-LF59A:	LD			(HL),B
-		INC			HL
-		CP			L
-		JP			NZ,LF59A
-		JP			ExitEscSequence
+	LD	A,L
+	AND	0C0h
+	ADD	A,40h           ; '@'
+	LD	B,20h           ; ' '
+LF59A:	LD	(HL),B
+	INC	HL
+	CP	L
+	JP	NZ,LF59A
+	JP	ExitEscSequence
 
-LF5A3:	CP			59h             ; 'Y' Move cursor to position
-		JP			NZ,ExitEscSequence
-		; --- Гашение текушего курсора
-		LD			HL,(EK_ADR)
-		LD			DE,0F801h		; -7FFH
-		ADD			HL,DE
-		LD			(HL),00h
-		; ---
-		LD			A,02h
-		LD			(EscSequenceState),A
-		JP			ExitTerm
+LF5A3:	CP	59h             ; 'Y' Move cursor to position
+	JP	NZ,ExitEscSequence
+	; --- Гашение текушего курсора
+	LD	HL,(EK_ADR)
+	LD	DE,0F801h		; -7FFH
+	ADD	HL,DE
+	LD	(HL),00h
+	; ---
+	LD	A,02h
+	LD	(EscSequenceState),A
+	JP	ExitTerm
 
-LF5B9:	LD			A,C
-		CP			1Bh
-		JP			NZ,LF5C9
-		LD			A,01h
-		LD			(EscSequenceState),A
-		LD			C,1Fh
-		JP			PrintCAndExit
+LF5B9:	LD	A,C
+	CP	1Bh
+	JP	NZ,LF5C9
+	LD	A,01h
+	LD	(EscSequenceState),A
+	LD	C,1Fh
+	JP	PrintCAndExit
 
-LF5C9:	LD			A,(EscSequenceState)
-		CP			02h
-		JP			NZ,LF5E0
+LF5C9:	LD	A,(EscSequenceState)
+	CP	02h
+	JP	NZ,LF5E0
 		
-		XOR			A
-		LD			A,C
-		SBC			A,20h           ; ' '
-		LD			(LF616),A
-		LD			A,03h
-		
-		LD			(EscSequenceState),A
-		JP			ExitTerm
+	XOR	A
+	LD	A,C
+	SBC	A,20h           ; ' '
+	LD	(LF616),A
+	LD	A,03h
+	
+	LD	(EscSequenceState),A
+	JP	ExitTerm
 
-LF5E0:	XOR			A
-		LD			A,C
-		SBC			A,20h           ; ' '
-		CP			3Fh             ; '?'
-		JP			C,LF5EB
-		LD			A,3Fh           ; '?'
-LF5EB:	LD			L,A
-		LD			A,(LF616)
-		RRCA
-		RRCA
-		LD			C,A
-		AND			0C0h
-		OR			L
-		LD			L,A
-		LD			A,C
-		AND			07h
-		OR			0E8h
-		LD			H,A
-		; --- Новая позиция курсора
-		LD			(EK_ADR),HL
-		LD			DE,0F801h		; -07FFH
-		ADD			HL,DE
-		LD			(HL),80h
+LF5E0:	XOR	A
+	LD	A,C
+	SBC	A,20h           ; ' '
+	CP	3Fh             ; '?'
+	JP	C,LF5EB
+	LD	A,3Fh           ; '?'
+LF5EB:	LD	L,A
+	LD	A,(LF616)
+	RRCA
+	RRCA
+	LD	C,A
+	AND	0C0h
+	OR	L
+	LD	L,A
+	LD	A,C
+	AND	07h
+	OR	0E8h
+	LD	H,A
+	; --- Новая позиция курсора
+	LD	(EK_ADR),HL
+	LD	DE,0F801h		; -07FFH
+	ADD	HL,DE
+	LD	(HL),80h
 
-		; --- START PROC ExitEscSequence ---
 ExitEscSequence:
-		XOR			A				; LD      A,00h
-		LD			(EscSequenceState),A
-		JP			ExitTerm
+	XOR	A
+	LD	(EscSequenceState),A
+	JP	ExitTerm
 
 EscSequenceState:
-		DB			00h
-LF616:	DB			00h
+	DB	00h
+LF616:	DB	00h
 
