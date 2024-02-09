@@ -1,12 +1,12 @@
-; Эмулятор терминала VT-52 для МИКРО-80 CP/M 2.2
-; Обратный порт с ЮТ-88
-; Оптимизация по размеру
-; Убран прямой переход (не через точку входа) в МОНИТОР
-; todo Использование МОНИТОРа, совместимого с РК-86 для вывода большинства кодов терминала
-;
-; Для МИКРО-80 (Стандартный МОНИТОР) и ЮТ-88 (МОНИТОР-F) используется системная переменная EK_ADR = 0F75AH,
-; т.к. нет никакого способа получить значение координат курсора. МОНИТОР для МИКРО-80, совместимный с Радио-86РК,
-; работать с данным эмулятором терминала не будет.
+; ═══════════════════════════════════════════════════════════════════════
+; Эмулятор терминала VT-52 для МИКРО-80/ЮТ-88 CP/M 2.2
+; ═══════════════════════════════════════════════════════════════════════
+; + Обратный порт с ЮТ-88
+; + Оптимизация по размеру
+; + Убран прямой переход (не через точку входа) в МОНИТОР
+; todo Поддержка РК-86
+; Для МИКРО-80 (Стандартный МОНИТОР и М/80К) и ЮТ-88 (МОНИТОР-F) 
+; используется системная переменная EK_ADR = 0F75AH
 ;
 ; Таблица поддерживаемых кодов (+ означает наличие поддержки)
 ;
@@ -42,7 +42,7 @@
 	INCLUDE		CFG.INC
 
 	ORG			TERM
-
+; Данная переменная одинакова для МОНИТОР и M/80K
 EK_ADR	EQU			0F75AH		;  Текущий адрес экрана в позиции курсора
 
 	PUSH	HL
@@ -96,64 +96,64 @@ PrintCAndExit:
 
 LF543:	LD	HL, EndEscSeqPrintCAndExit
 	PUSH	HL
-	CP	42h             ; 'B' Cursor down
+	CP	'B'             ; 'B' Cursor down
 ;		JP			NZ,LF54D
 	LD	C,1Ah
 ;		JP			EndEscSeqPrintCAndExit
 		;JP			Z, EndEscSeqPrintCAndExit
 	RET	Z
-LF54D:	CP	43h             ; 'C' Cursor right
+LF54D:	CP	'C'             ; 'C' Cursor right
 ;		JP			NZ,LF557
 	LD	C,18h
 		;JP			Z, EndEscSeqPrintCAndExit
 	RET	Z
 
-LF557:	CP	44h             ; 'D' Cursor left
+LF557:	CP	'D'             ; 'D' Cursor left
 ;		JP			NZ,LF561
 	LD	C,08h
 		;JP			Z, EndEscSeqPrintCAndExit
 	RET	Z
 
-LF561:	CP	45h             ; 'E' Clear Screen - расширение с Atari
+LF561:	CP	'E'             ; 'E' Clear Screen - расширение с Atari
 ;		JP			NZ,LF56B
 	LD	C,1Fh
 		;JP			Z, EndEscSeqPrintCAndExit
 	RET	Z
 
-LF56B:	CP	48h             ; 'H' Cursor home
+LF56B:	CP	'H'             ; 'H' Cursor home
 ;		JP			NZ,LF575
 	LD	C,0Ch
 		;JP			Z, EndEscSeqPrintCAndExit
 	RET	Z
 	POP	HL
 
-LF575:	CP	4Ah             ; 'J' Clear to end of screen
+LF575:	CP	'J'             ; 'J' Clear to end of screen
 	JP	NZ,LF58A
 	LD	HL,(EK_ADR)
 	LD	A,0F0h
-	LD	B,20h           ; ' '
+	LD	B,' '           ; ' '
 LF581:	LD	(HL),B
 	INC	HL
 	CP	H
 	JP	NZ,LF581
 	JP	ExitEscSequence
 
-LF58A:	CP	4Bh             ; 'K' Clear to end of line
+LF58A:	CP	'K'             ; 'K' Clear to end of line
 	JP	NZ,LF5A3
 	LD	HL,(EK_ADR)
-;		XOR			A				; Это зачем?
 	LD	A,L
 	AND	0C0h
 	ADD	A,40h           ; '@'
-	LD	B,20h           ; ' '
+	LD	B,' '           ; ' '
 LF59A:	LD	(HL),B
 	INC	HL
 	CP	L
 	JP	NZ,LF59A
 	JP	ExitEscSequence
 
-LF5A3:	CP	59h             ; 'Y' Move cursor to position
+LF5A3:	CP	'Y'             ; 'Y' Move cursor to position
 	JP	NZ,ExitEscSequence
+
 	; --- Гашение текушего курсора
 	LD	HL,(EK_ADR)
 	LD	DE,0F801h		; -7FFH
