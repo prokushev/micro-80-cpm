@@ -52,19 +52,18 @@ L01E8:  DB      00h
         DB      00h
 
 START:  LD      SP,0500h
-        LD      DE,L0103
-        CALL	WRITESTR
+        LD      E,L0103 & 0FFH
+        CALL	WRITESTRID
         LD      A,(FCB1+1)	; First filename as argument
         CP      ' '
         JP      NZ,L0209
-        LD      DE,L0192
-WRITESTREXIT:
-	CALL	WRITESTR
+        LD      E,L0192 & 0FFH
+WRITESTRIDEXIT:
+	CALL	WRITESTRID
 	RST	0
 
-L0209:  LD      DE,FCB1
-        LD      C,F_OPEN
-        CALL    BDOS
+L0209:  LD      C,F_OPEN
+        CALL    F_BDOS
         CP      0FFh
         JP      Z,L032D
         LD      HL,0500h
@@ -73,9 +72,8 @@ L021C:  LD      HL,(L01E4)
         EX      DE,HL
         LD      C,F_DMAOFF
         CALL    BDOS
-        LD      DE,FCB1
         LD      C,F_READ
-        CALL    BDOS
+        CALL    F_BDOS
         OR      A
         JP      NZ,L024E
         LD      HL,(L01E4)
@@ -86,11 +84,11 @@ L021C:  LD      HL,(L01E4)
         LD      HL,(0006h)
         CP      H
         JP      C,L021C
-        LD      DE,L01AC
-        JP	WRITESTREXIT
+        LD      E,L01AC & 0FFH
+        JP	WRITESTRIDEXIT
 
-L024E:  LD      DE,L0136
-        CALL	WRITESTR
+L024E:  LD      E,L0136 & 0FFH
+        CALL	WRITESTRID
         CALL	READCHAR
         CALL    CRLF
         LD      DE,0500h
@@ -106,7 +104,7 @@ L024E:  LD      DE,L0136
         SBC     A,D
         LD      H,A
         LD      (L01E8),HL
-
+; Запись в формате МИКРО-80/ЮТ-88
         LD      L,00h
 L027B:  LD      C,00h
         CALL    PUNCHER
@@ -133,8 +131,8 @@ L02A3:  LD      C,(HL)
         LD      A,D
         OR      E
         JP      NZ,L02A3
-        LD      DE,L0155
-        CALL	WRITESTR
+        LD      E,L0155 & 0FFH
+        CALL	WRITESTRID
         CALL	READCHAR
         CALL    CRLF
         LD      HL,(L01E6)
@@ -164,12 +162,8 @@ L02E6:  CALL    L0302
         JP      NZ,L02E6
 	RST	0
 
-L02F7:  LD      DE,L0182
-        JP	WRITESTREXIT
-
-        ; --- START PROC L0302 ---
-L0302:  LD      A,08h
-        JP      READER
+L02F7:  LD      E,L0182 & 0FFH
+        JP	WRITESTRIDEXIT
 
         ; --- START PROC L0307 ---
 L0307:  LD      BC,0000h
@@ -199,8 +193,8 @@ CRLF:	LD      C,C_WRITE
         JP      BDOS
 
         ; --- START PROC L032D ---
-L032D:  LD      DE,L0118
-        CALL	WRITESTR
+L032D:  LD      E,L0118 & 0FFH
+        CALL	WRITESTRID
         CALL	READCHAR
         CALL    CRLF
         LD      A,0FFh
@@ -235,16 +229,15 @@ L0359:  CALL    L0302
         LD      A,E
         CP      L
         JP      Z,L0387
-L037C:  LD      DE,L0174
-        JP	WRITESTREXIT
+L037C:  LD      E,L0174 & 0FFH
+        JP	WRITESTRIDEXIT
 
-L0387:  LD      DE,FCB1
-        LD      C,F_MAKE
-        CALL    BDOS
+L0387:  LD      C,F_MAKE
+        CALL    F_BDOS
         CP      0FFh
         JP      NZ,L039F
-        LD      DE,L01C1
-        JP	WRITESTREXIT
+        LD      E,L01C1 & 0FFH
+        JP	WRITESTRIDEXIT
 
 L039F:  LD      HL,0500h
         LD      (L01E4),HL
@@ -252,17 +245,14 @@ L03A5:  LD      HL,(L01E4)
         EX      DE,HL
         LD      C,F_DMAOFF
         CALL    BDOS
-        LD      DE,FCB1
         LD      C,F_WRITE
-        CALL    BDOS
+        CALL    F_BDOS
         OR      A
         JP      Z,L03CD
-        LD      DE,L01D7
-        CALL	WRITESTR
-        LD      DE,FCB1
+        LD      E,L01D7 & 0FFH
+        CALL	WRITESTRID
         LD      C,F_DELETE
-        CALL    BDOS
-	RST	0
+        JP	F_BDOS_EXIT
 
 L03CD:  LD      HL,(L01E4)
         LD      DE,0080h
@@ -278,13 +268,18 @@ L03CD:  LD      HL,(L01E4)
         LD      (L01E8),HL
         OR      L
         JP      NZ,L03A5
-        LD      DE,FCB1
         LD      C,F_CLOSE
-        CALL    BDOS
+F_BDOS_EXIT:
+	CALL    F_BDOS
         RST	0
 
-READER:
-	LD	C, A_READ
+F_BDOS:
+        LD      DE,FCB1
+        JP	BDOS
+
+        ; --- START PROC L0302 ---
+L0302:  LD      A,08h
+READER:	LD	C, A_READ
 	JP	BDOS
 
 PUNCHER:
@@ -292,6 +287,8 @@ PUNCHER:
 	LD	C, A_WRITE
 	JP	BDOS
 
+WRITESTRID:
+	LD	D, (L0103 & 0FF00H) >> 8
 WRITESTR:
 	LD	C, C_WRITESTR
 	JP	BDOS
