@@ -72,7 +72,6 @@ DISKIMAGE:
 	BINCLUDE	CPM64-BDOS.BIN
 	ORG		3400H+1600H
 	BINCLUDE	CPM64-BIOS.BIN
-
 ENDC	EQU		$
 
 	; Продолжение образа квазидиска - директория и данные
