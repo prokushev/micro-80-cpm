@@ -166,25 +166,27 @@ SELDSK:	LD		HL,0000h
 
 HOME:	LD		C,00h
 
-;		LD	A, 40H
-;		ADD	A, C
-;		LD	B, 11111110b
-; LOOP:		SUB	40H
-;		LD	C, A
-;		JP	C, EXLOOP
-;		LD	A, B
-; 		RLCA
-;		LD	B, A
-;		LD	A, C
-;		JP	LOOP
-; EXLOOP:	LD	A, B
-; 		LD	(DSKN),A
-
 ;SETTRK (function 10)
 ;
 ;Set the track in BC - 0 based.
 
-SETTRK:	LD		A, 11111110b	;0FEh
+SETTRK:	
+	if 0
+	LD	A, 40H
+	ADD	A, C
+	LD	B, 11111110b
+LOOP:	SUB	40H
+	LD	C, A
+	JP	C, EXLOOP
+	LD	A, B
+	RLCA
+	LD	B, A
+	LD	A, C
+	JP	LOOP
+EXLOOP:	LD	A, B
+	LD	(DSKN),A
+	else
+	LD		A, 11111110b	;0FEh
 	LD		(DSKN),A
 	LD		A,C
 	CP		40h
@@ -242,7 +244,7 @@ SETTRK:	LD		A, 11111110b	;0FEh
 
 	LD		A, 01111111b	;07Fh
 	LD		(DSKN),A
-
+	endif
 LDB59:	LD		HL,TRACK
 	LD		(HL),C
 	RET
