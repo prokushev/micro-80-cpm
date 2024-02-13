@@ -22,3 +22,5 @@ asw -lU romdisk.asm > romdisk.lst
 p2bin romdisk.p romdisk.bin
 
 bin2rk cpm64-loader.bin 12544
+
+:asw -l comheader.asm > comheader.lst
