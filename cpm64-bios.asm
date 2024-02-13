@@ -52,6 +52,39 @@
 	LD		L,A
 	RET
 
+CONIN:
+	CALL	CONST		; Нажато что-нибудь?
+	OR	A
+	JP	Z,CONIN		; Ждем, пока ченить не нажмут
+	PUSH	HL
+	LD	HL, LASTKEY
+	LD	A,(HL)		; Читаем из буфера
+unpress:	CALL	0F812H		; Ждем отпускания
+	INC	A		
+	jp z, unpress
+	LD	A,(HL)		; Читаем из буфера
+	LD	(HL), 0		; Обнуляем буфер
+	POP	HL
+	RET
+	
+LASTKEY:	DB 0
+CONST:
+	LD	A,(LASTKEY)
+	OR	A
+	LD	A, 0FFH
+	RET	NZ		; если в LASTCHAR уже есть символ, то говорим, что нажато
+	CALL	0F812H		; Проверяем, нажали ли чего
+	INC	A		
+	JP	Z, Pressed
+	DEC	A
+	RET
+	
+Pressed:
+	CALL	0F81BH		; Если нажато, то читаем без ожидания символ в буфер
+	LD	(LASTKEY), A
+	LD	A, 0FFH		; Ставим статус, что нажато
+	RET
+
 ;WBOOT (function 1)
 ;
 ; Reloads the command processor and (on some systems) 
@@ -105,6 +138,30 @@ LOAD1:	PUSH		BC
 ;and should never be called from user code.
 
 BOOT:	LD		SP,0100h
+
+; ───────────────────────────────────────────────────────────────────────
+; Проверяем наличие Микро-80 (Монитор РК)
+; В этом МОНИТОРе неправильно реализован автоповтор, что приводит
+; к "залипанию" в программах со связкой F812H/F803H.
+; ───────────────────────────────────────────────────────────────────────
+
+	LD	A, (0FFD8H)		; Проверяем наличие Микро-80 с М/80К
+	CP	038H			; Букава 'm' от приветствия
+	JP	NZ, NORMALF800	; Если нет, то работаем как обычно
+
+	LD	DE, CONST
+	LD	HL, BIOS+6+1	; Патчим CONST
+	LD	(HL), E
+	INC	HL
+	LD	(HL), D
+
+	LD	DE, CONIN
+	LD	HL, BIOS+9+1	; Патчим CONIN
+	LD	(HL), E
+	INC	HL
+	LD	(HL), D
+
+NORMALF800:
 	LD		HL,HELLO
 
 PRINTSTR:
