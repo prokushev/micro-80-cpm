@@ -1,5 +1,5 @@
 ; ═══════════════════════════════════════════════════════════════════════
-; МИКРО-80 CP/M 2.2 CH.COM
+; МИКРО-80/ЮТ-88 CP/M 2.2 CH.COM
 ; ═══════════════════════════════════════════════════════════════════════
 ; + Обратный порт с ЮТ-88 CP/M 2.2 BIOS на МИКРО-80
 ; + Отвязан от МОНИТОРа (замена вызовов МОНИТОРа tape in/tape out на функции punch/reader BDOS)
@@ -32,16 +32,8 @@ F_DMAOFF	EQU		1AH
 
 		JP      START
 
-L0103:		DB "CHANGER VERS 1.2", 0Dh, 0Ah, 0Dh, 0Ah, "$"
-L0118:		DB "READY TR FOR INPUT, PRESS CR.$"
-L0136:		DB "READY TR FOR OUTPUT, PRESS CR.$"
-L0155:		DB "READY TR FOR VERIFY, PRESS CR.$"
-L0174:		DB "READ ERROR.", 0Dh, 0Ah, "$"
-L0182:		DB "VERIFY ERROR.", 0Dh, 0Ah, "$"
-L0192:		DB "NO SOURCE FILE PRESENT.", 0Dh, 0Ah, "$"
-L01AC:		DB "NOT ENOUGH MEMORY.", 0Dh, 0Ah, "$"
-L01C1:		DB "NO DIRECTORY SPACE.", 0Dh, 0Ah, "$"
-L01D7:		DB "DISK FULL.", 0Dh, 0Ah, "$"
+;		INCLUDE	"en.inc"
+		INCLUDE	"ru.inc"
 
 L01E4:  DB      2Eh             ; '.'
         DB      00h
@@ -56,13 +48,14 @@ START:  LD      SP,0500h
         CALL	WRITESTRID
         LD      A,(FCB1+1)	; First filename as argument
         CP      ' '
-        JP      NZ,L0209
+        JP      NZ,PROCESS
         LD      E,L0192 & 0FFH
 WRITESTRIDEXIT:
 	CALL	WRITESTRID
 	RST	0
 
-L0209:  LD      C,F_OPEN
+PROCESS:
+	LD      C,F_OPEN
         CALL    F_BDOS
         CP      0FFh
         JP      Z,L032D
