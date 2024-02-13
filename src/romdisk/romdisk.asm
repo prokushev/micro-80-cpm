@@ -9,7 +9,16 @@
 	CPU	8080
 	Z80SYNTAX	EXCLUSIVE
 
-	ORG	100H
+	org	100h
+
+init:
+	; Здесь перемещаем в верхние адреса памяти
+	; Перехватываем CALL 5
+	; Подумать, что делать с CCP (сделать внешним файлом, как в
+	; (CP/NET?)
+	
+	rst	0
+bdosstart:
 ; serial number (not documented in original DRI source file)
 	db	0	; OEM number, low byte
 	db	0	; CP/M version, 16h = 2.2
