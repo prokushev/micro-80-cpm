@@ -8,6 +8,7 @@
 ; + Сделана поддержка не 4 модулей памяти (как в ЮТ-88), а 8-ми (как в МИКРО-80)
 ; + Исправлено "запаздывание" отображения нажатых клавиш (баг в f803h M80/K)
 ; todo В нижнем ОЗУ с DF00H только таблица переходов, а сам BIOS перенесен в верхнее ОЗУ на F000H
+; todo Поддержка принтера
 
 	CPU			8080
 	Z80SYNTAX	EXCLUSIVE
@@ -57,12 +58,12 @@ CONIN:
 	CALL	CONST		; Нажато что-нибудь?
 	OR	A
 	JP	Z,CONIN		; Ждем, пока ченить не нажмут
+Unpress:
+	CALL	0F812H		; Ждем отпускания
+	INC	A		
+	JP	Z, Unpress
 	PUSH	HL
 	LD	HL, LASTKEY
-	LD	A,(HL)		; Читаем из буфера
-unpress:	CALL	0F812H		; Ждем отпускания
-	INC	A		
-	jp z, unpress
 	LD	A,(HL)		; Читаем из буфера
 	LD	(HL), 0		; Обнуляем буфер
 	POP	HL
@@ -73,15 +74,16 @@ CONST:
 	LD	A,(LASTKEY)
 	OR	A
 	LD	A, 0FFH
-	RET	NZ		; если в LASTCHAR уже есть символ, то говорим, что нажато
+	RET	NZ		; если в LASTKEY уже есть символ, то говорим, что нажато
+; ----- TODO Можно обойтись только F81BH? -------
 	CALL	0F812H		; Проверяем, нажали ли чего
-	INC	A		
-	JP	Z, Pressed
-	DEC	A
-	RET
-	
-Pressed:
+	OR	A
+	RET	Z		; Если ничего не нажато, то выходим
 	CALL	0F81BH		; Если нажато, то читаем без ожидания символ в буфер
+;	INC	A
+;	RET	Z
+;	DEC	A
+; -----------------------------------------------
 	LD	(LASTKEY), A
 	LD	A, 0FFH		; Ставим статус, что нажато
 	RET
@@ -165,6 +167,7 @@ BOOT:	LD		SP,0100h
 NORMALF800:
 	LD		HL,HELLO
 
+; ---------------- TODO Заменить на F818? ----------------
 PRINTSTR:
 	LD		A,(HL)
 	OR		A
@@ -173,6 +176,7 @@ PRINTSTR:
 	CALL		TERM
 	INC		HL
 	JP		PRINTSTR
+; -----------------------------------------------------------
 
 BOOT1:	XOR		A
 	LD		(0004h),A
@@ -313,6 +317,7 @@ LDB59:	LD		HL,TRACK
 ;is 128 bytes. Under CP/M 3 the sector size is given
 ;in the Disk Parameter Block.
 ;
+; TODO:
 ;There has been discussion in comp.os.cpm about whether
 ;the parameter to this function is a byte or a word. 
 ;The conclusion (based on examining the BDOS source) 
