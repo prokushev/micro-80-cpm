@@ -18,6 +18,9 @@ p2bin src\loader\cpm64-loader.p bin\cpm64-loader.bin
 asw -lU src\ch\ch-com.asm > ch-com.lst
 p2bin src\ch\ch-com.p com\ch.com
 
+asw -lU src\dump\dump.asm > dump.lst
+p2bin src\dump\dump.p com\dump.com
+
 asw -lU src\romdisk\romdisk.asm > romdisk.lst
 p2bin src\romdisk\romdisk.p com\romdisk.com
 
