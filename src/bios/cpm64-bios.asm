@@ -17,27 +17,28 @@
 	Z80SYNTAX	EXCLUSIVE
 
 	INCLUDE		CFG.INC
+	INCLUDE		syscalls.inc
 
 	ORG		BIOS
 
 	INCLUDE		DSKDEF.MAC
 
-	JP		BOOT    ;-3: Cold start routine
-	JP		WBOOT   ; 0: Warm boot - reload command processor
-	JP		0F812h	; 3: Console status
-	JP		0F803h	; 6: Console input
-	JP		TERM	; 9: Console output
-	JP		0F80FH	;12: Printer output
-	JP		0F80Ch	;15: Paper tape punch output
-	JP		0F806h	;18: Paper tape reader input
-	JP		HOME	;21: Move disc head to track 0
-	JP		SELDSK	;24: Select disc drive
-	JP		SETTRK	;27: Set track number
-	JP		SETSEC	;30: Set sector number
-	JP		SETDMA	;33: Set DMA address
-	JP		READ	;36: Read a sector
-	JP		WRITE	;39: Write a sector
-	LD		A,0FFh	;42: Status of list device
+	JP	BOOT			;-3: Cold start routine
+	JP	WBOOT			; 0: Warm boot - reload command processor
+	JP	GetKeyboardStatus	; 3: Console status
+	JP	InputSymbol		; 6: Console input
+	JP	TERM			; 9: Console output
+	JP	ListCharFromC		;12: Printer output
+	JP	TapeWriteByte		;15: Paper tape punch output
+	JP	TapeReadByte		;18: Paper tape reader input
+	JP	HOME			;21: Move disc head to track 0
+	JP	SELDSK			;24: Select disc drive
+	JP	SETTRK			;27: Set track number
+	JP	SETSEC			;30: Set sector number
+	JP	SETDMA			;33: Set DMA address
+	JP	READ			;36: Read a sector
+	JP	WRITE			;39: Write a sector
+	LD	A,0FFh			;42: Status of list device
 	RET
 
 ;SECTRAN (function 16)
@@ -49,26 +50,26 @@
 ;physical sector number. On a system with hardware skewing, 
 ;this would normally ignore DE and return either BC or BC+1.
 
-	LD		B,00h	;45: Sector translation for skewing
-	EX		DE,HL
-	ADD		HL,BC
-	LD		A,(HL)
-	LD		(SECTOR),A
-	LD		L,A
+	LD	B,00h			;45: Sector translation for skewing
+	EX	DE,HL
+	ADD	HL,BC
+	LD	A,(HL)
+	LD	(SECTOR),A
+	LD	L,A
 	RET
 
 CONIN:
-	CALL	CONST		; Нажато что-нибудь?
+	CALL	CONST			; Нажато что-нибудь?
 	OR	A
-	JP	Z,CONIN		; Ждем, пока ченить не нажмут
+	JP	Z,CONIN			; Ждем, пока ченить не нажмут
 Unpress:
-	CALL	0F812H		; Ждем отпускания
+	CALL	GetKeyboardStatus	; Ждем отпускания
 	INC	A		
 	JP	Z, Unpress
 	PUSH	HL
 	LD	HL, LASTKEY
-	LD	A,(HL)		; Читаем из буфера
-	LD	(HL), 0		; Обнуляем буфер
+	LD	A,(HL)			; Читаем из буфера
+	LD	(HL), 0			; Обнуляем буфер
 	POP	HL
 	RET
 	
@@ -77,8 +78,8 @@ CONST:
 	LD	A,(LASTKEY)
 	OR	A
 	LD	A, 0FFH
-	RET	NZ		; если в LASTKEY уже есть символ, то говорим, что нажато
-	CALL	0F81BH		; Если нажато, то читаем без ожидания символ в буфер
+	RET	NZ			; если в LASTKEY уже есть символ, то говорим, что нажато
+	CALL	ReadKeyCode		; Если нажато, то читаем без ожидания символ в буфер
 	INC	A
 	RET	Z		; Если ничего не нажато, то выходим
 	DEC	A
@@ -164,25 +165,25 @@ BOOT:	LD		SP,0100h
 
 NORMALF800:
 	LD	HL,HELLO
-	CALL	0F818H
+	CALL	PrintString
 
-BOOT1:	XOR		A
-	LD		(0004h),A
-	LD		(0003h),A
+BOOT1:	XOR	A
+	LD	(0004h),A
+	LD	(0003h),A
 
-GOCPM:;	DI				; А это зачем? У нас нет прерываний...
-	LD		HL,BIOS+3
-	LD		(0001h),HL
-	LD		BC,0080h
-	CALL		SETDMA
-	LD		A,0C3h
-	LD		(0000h),A
-	LD		(0005h),A
-	LD		HL, BDOS+6
-	LD		(0006h),HL
-	LD		A,(0004h)
-	LD		C,A
-	JP		CCP
+GOCPM:	DI				; На некоторых машинах имеется но где тогда включать?
+	LD	HL,BIOS+3
+	LD	(0001h),HL
+	LD	BC,0080h
+	CALL	SETDMA
+	LD	A,0C3h
+	LD	(0000h),A
+	LD	(0005h),A
+	LD	HL, BDOS+6
+	LD	(0006h),HL
+	LD	A,(0004h)
+	LD	C,A
+	JP	CCP
 
 ;SELDSK (function 9)
 ;
@@ -203,18 +204,18 @@ GOCPM:;	DI				; А это зачем? У нас нет прерываний...
 ;not visible to programs. If the disc could not be selected 
 ;it returns HL=0.
 
-SELDSK:	LD		HL,0000h
-	LD		A,C
-	OR		A
-	RET		NZ
-	LD		HL,dpbase
+SELDSK:	LD	HL,0000h
+	LD	A,C
+	OR	A
+	RET	NZ
+	LD	HL,dpbase
 	RET
 
 ;HOME (function 8)
 ;
 ;Move the current drive to track 0.
 
-HOME:	LD		C,00h
+HOME:	LD	C,00h
 
 ;SETTRK (function 10)
 ;
@@ -431,4 +432,4 @@ OLDSP:	DS		2
 	diskdef		0, 1, 8, 1, 1024, 40+64+64+64+64+64+64+64, 40H, 32, 6
 	endef
 
-HELLO:	DB		01fh, "*MikrO/80* CP/M V2.2", 0ah, 0
+HELLO:	DB		01fh, "*MikrO/80* CP/M 2.2", 0ah, 0

@@ -1,14 +1,14 @@
 ; ═══════════════════════════════════════════════════════════════════════
-;  МОНИТОРы для Радио-86РК для КР580, совместимые с Орион-128,
-;  поддержкой VT-52 и эмулятором CP/M
-; ───────────────────────────────────────────────────────────────────────
 ;  Системные вызовы МОНИТОРа
 ; ═══════════════════════════════════════════════════════════════════════
 
+; Стандартные  точки входа
 ColdBoot			EQU	0F800H
 InputSymbol			EQU	0F803H
+TapeReadByte			EQU	0F806H
 PrintCharFromC			EQU	0F809H
 TapeWriteByte			EQU	0F80CH
+ListCharFromC			EQU	0F80FH
 GetKeyboardStatus		EQU	0F812H
 PrintString			EQU	0F818H
 PrintHexByte			EQU	0F815H
@@ -24,6 +24,7 @@ SetFreeMemAddr			EQU	0F833H
 SetCursorPos			EQU	0F83CH
 Beep				EQU	0F83FH
 
+; Полустандартные точки входа
 WarmBoot			EQU	0F86CH
 InputDirective			EQU	0F8EEH
 Compare_HL_DE			EQU	0F990H
