@@ -6,6 +6,7 @@
 ; + Убран прямой переход (не через точку входа) в МОНИТОР
 ; todo Расширена поддержка VT-52 (из моего МОНИТОРА РК86)
 ; todo Поддержка РК-86
+; todo Отслеживание позиции курсора. Теперь не зависит от рабочих ячеек МОНИТОРа.
 ; Для МИКРО-80 (Стандартный МОНИТОР и М/80К) и ЮТ-88 (МОНИТОР-F) 
 ; используется системная переменная EK_ADR = 0F75AH
 ;
@@ -37,15 +38,15 @@
 ;
 ; +E	Clear screen			Clear whole screen GEMDOS/TOS extension
 
-	CPU			8080
+	CPU		8080
 	Z80SYNTAX	EXCLUSIVE
 
-	INCLUDE		CFG.INC
+	INCLUDE	CFG.INC
 
-	ORG			TERM
+	ORG	TERM
 
 ; Данная переменная одинакова для МОНИТОР и M/80K
-EK_ADR	EQU			0F75AH		;  Текущий адрес экрана в позиции курсора
+EK_ADR	EQU	0F75AH		;  Текущий адрес экрана в позиции курсора
 
 	PUSH	HL
 	PUSH	BC
@@ -58,7 +59,7 @@ EK_ADR	EQU			0F75AH		;  Текущий адрес экрана в позиции
 	PUSH	HL
 
 	LD	A,C		
-	CP	20h             ; ' '
+	CP	' '             ; ' '
 	RET	NC		;JP NC,PrintCAndExit
 	CP	08h
 	RET	Z		;JP Z,PrintCAndExit

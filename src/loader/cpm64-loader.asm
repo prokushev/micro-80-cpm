@@ -1,12 +1,14 @@
 ; ═══════════════════════════════════════════════════════════════════════
 ; МИКРО-80 CP/M 2.2 ЗАГРУЗЧИК
 ; ═══════════════════════════════════════════════════════════════════════
-; Является обратным портом ЮТ-88 CP/M 2.2 на МИКРО-80
-; todo загрузка в произвольные адреса
-; todo автоопределение объема квазидиска
-; todo Образ квазидиска теперь содержит полный набор Directory
+; + Обратный порт ЮТ-88 CP/M 2.2 на МИКРО-80
+; + Загрузка загрузчика в произвольные адреса
+; + Образ квазидиска теперь содержит полный набор Directory (нет "пустых" файлов по DIR)
+; + Загрузчик позволяет не затирать существующие данные на квазидиске
+; todo Автоопределение объема квазидиска
 ; todo CH.COM добавлен в образ квазидиска
-; todo CP/M размещается в соответствии с верхней границой памяти
+; todo CP/M размещается в соответствии с верхней границей памяти
+; todo Восстановление диска с ленты
 
 	CPU		8080
 	Z80SYNTAX	EXCLUSIVE
@@ -47,77 +49,112 @@ BaseAddress:
 	RST	0
 	LD	((RST0_2-$) & 0ffffh), A
 
+	RST	0
+	LD	HL, HELLO-$
+	CALL	PrintString
+
 	; Перемещение CCP/BDOS/BIOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
-	RST		0
-	LD		HL, DISKIMAGE-$
-	LD		DE, CCP
-	RST		0
-	LD		BC, ENDC-$
+	RST	0
+	LD	HL, DISKIMAGE-$
+	LD	DE, CCP
+	RST	0
+	LD	BC, ENDC-$
 COPYLOOP:
-	LD		A,(HL)
-	LD		(DE),A
-	INC		HL
-	INC		DE
-	LD		A,H
-	CP		B
-	RST		0
-	JP		NZ,COPYLOOP-$
-	LD		A,L
-	CP		C
-	RST		0
-	JP		NZ,COPYLOOP-$
+	LD	A,(HL)
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	LD	A,H
+	CP	B
+	RST	0
+	JP	NZ,COPYLOOP-$
+	LD	A,L
+	CP	C
+	RST	0
+	JP	NZ,COPYLOOP-$
 
 	; Перемещение эмулятора терминала по итоговым адресам
 	
-	RST		0
-	LD		HL,TERMIMAGE-$
-	LD		DE,TERM
-	RST		0
-	LD		BC,TERMIMAGEEND-$
-L3135:	LD		A,(HL)
-	LD		(DE),A
-	INC		HL
-	INC		DE
-	LD		A,H
-	CP		B
-	RST		0
-	JP		NZ,L3135-$
-	LD		A,L
-	CP		C
-	RST		0
-	JP		NZ,L3135-$
+	RST	0
+	LD	HL,TERMIMAGE-$
+	LD	DE,TERM
+	RST	0
+	LD	BC,TERMIMAGEEND-$
+L3135:	LD	A,(HL)
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	LD	A,H
+	CP	B
+	RST	0
+	JP	NZ,L3135-$
+	LD	A,L
+	CP	C
+	RST	0
+	JP	NZ,L3135-$
 
+	;
+MenuLoop:
+	RST	0
+	LD	HL, MENU-$
+	CALL	PrintString
+	CALL	InputSymbol
+
+	CP	'3'
+	JP	Z, BIOS
+
+	CP	'1'
+	RST	0
+	JP	Z, LoadDisk-$
+
+	CP	'2'
+	RST	0
+	JP	Z, InitDisk-$
+	RST	0
+	JP	MenuLoop-$
+
+InitDisk:
 	; Сохранение копии CP/M на квазидиске
 	; (адреса перебираются сверху вниз)
-	RST		0
-	LD		HL, L3120-$
-	LD		(Patch1+1-$), HL
-	RST		0
-	LD		HL,ENDDISK-$
-	LD		SP,1C00h
+	RST	0
+	LD	HL, L3120-$
+	RST	0
+	LD	(Patch1+1-$), HL
+	RST	0
+	LD	(Patch2+1-$), HL
+	RST	0
+	LD	HL,ENDDISKIMAGE-$
+	RST	0
+	LD	BC,DISKIMAGE-$
+	DEC	BC
+	LD	SP,ENDDISKIMAGE-DISKIMAGE+1
 ;	Дальше нельзя CALL, RST	
-	LD		A,0FEh
-	OUT		(40h),A			; Подключаем первые 64кб RAMDISKа
+	LD	A,0FEh
+	OUT	(40h),A			; Подключаем первые 64кб RAMDISKа
 
-L3120:	LD		D,(HL)
-	DEC		HL
-	LD		E,(HL)
-	DEC		HL
-	PUSH		DE
-	LD		A,H
-	CP		DISKIMAGE/0FFh-1	;33h
+L3120:	LD	D,(HL)
+	DEC	HL
+	LD	E,(HL)
+	DEC	HL
+	PUSH	DE
+	LD	A,H
+	CP	B
 Patch1:
-	JP		NZ,L3120
+	JP	NZ,L3120
+	LD	A, L
+	CP	C
+Patch2:
+	JP	NZ,L3120
 
-	LD		A,0FFh
-	OUT		(40h),A			; Отключаем RAMDISK
+	LD	A,0FFh
+	OUT	(40h),A			; Отключаем RAMDISK
 ;	Дальше можно CALL, RST	
 
-	JP		BIOS
+	JP	BIOS			; Холодный старт BIOS
 
 ; ───────────────────────────────────────────────────────────────────────
-; Подпрограмма модификации относительного адреса перехода
+; Подпрограмма модификации относительного адреса
 ; ───────────────────────────────────────────────────────────────────────
 RST0:	EX	(SP),HL		; Save H,L and get next PC
 	PUSH	DE		; Save D,E.
@@ -147,7 +184,13 @@ RST0:	EX	(SP),HL		; Save H,L and get next PC
 RST0_0	DW	0
 RST0_2:	DB	0
 
-	ORG		31E0H
+HELLO:	DB	1FH, "zagruz~ik CP/M-80 2.2", 0dh, 0ah, 0
+MENU:	;DB	"1. zagruzitx disk s mg", 0dh, 0ah
+	DB	"2. sozdatx nowyj disk", 0dh, 0ah
+	DB	"3. ispolxzowatx teku}ij disk", 0dh,0ah
+	DB	"=>"
+	DB	0
+
 TERMIMAGE:
 	BINCLUDE	CPM64-TERM.BIN
 TERMIMAGEEND:
@@ -155,14 +198,65 @@ TERMIMAGEEND:
 	; Образ квазидиска - системная часть
 	ORG		3400H
 DISKIMAGE:
-	BINCLUDE	CPM64-CCP.BIN
+	BINCLUDE	CPM64-CCP.BIN		; size=800H
 	ORG		3400H+800H
-	BINCLUDE	CPM64-BDOS.BIN
+	BINCLUDE	CPM64-BDOS.BIN		; size=1600H
 	ORG		3400H+1600H
-	BINCLUDE	CPM64-BIOS.BIN
+	BINCLUDE	CPM64-BIOS.BIN		; size=300H
 ENDC	EQU		$
 
 	; Продолжение образа квазидиска - директория и данные
 	; @TODO Разместить тут начальный каталог + CH.COM, как минимум
-	DB		5000H-$ DUP (0E5H)
-ENDDISK	EQU	$-1
+	;CP/M 2.2 directory
+	;
+	;The CP/M 2.2 directory has only one type of entry:
+	;
+	;UU F1 F2 F3 F4 F5 F6 F7 F8 T1 T2 T3 EX S1 S2 RC   .FILENAMETYP....
+	;AL AL AL AL AL AL AL AL AL AL AL AL AL AL AL AL   ................
+	;
+	;UU = User number. 0-15 (on some systems, 0-31). The user number allows multiple
+	;    files of the same name to coexist on the disc. 
+	;     User number = 0E5h => File deleted
+	;Fn - filename
+	;Tn - filetype. The characters used for these are 7-bit ASCII.
+	;       The top bit of T1 (often referred to as T1') is set if the file is 
+	;     read-only.
+	;       T2' is set if the file is a system file (this corresponds to "hidden" on 
+	;     other systems). 
+	;EX = Extent counter, low byte - takes values from 0-31
+	;S2 = Extent counter, high byte.
+	;
+	;      An extent is the portion of a file controlled by one directory entry.
+	;    If a file takes up more blocks than can be listed in one directory entry,
+	;    it is given multiple entries, distinguished by their EX and S2 bytes. The
+	;    formula is: Entry number = ((32*S2)+EX) / (exm+1) where exm is the 
+	;    extent mask value from the Disc Parameter Block.
+	;
+	;S1 - reserved, set to 0.
+	;RC - Number of records (1 record=128 bytes) used in this extent, low byte.
+	;    The total number of records used in this extent is
+	;
+	;    (EX & exm) * 128 + RC
+	;
+	;    If RC is >=80h, this extent is full and there may be another one on the 
+	;    disc. File lengths are only saved to the nearest 128 bytes.
+	;
+	;AL - Allocation. Each AL is the number of a block on the disc. If an AL
+	;    number is zero, that section of the file has no storage allocated to it
+	;    (ie it does not exist). For example, a 3k file might have allocation 
+	;    5,6,8,0,0.... - the first 1k is in block 5, the second in block 6, the 
+	;    third in block 8.
+	;     AL numbers can either be 8-bit (if there are fewer than 256 blocks on the
+	;    disc) or 16-bit (stored low byte first). 
+
+	ORG	4D00H	
+	DB		40H*32 DUP (0E5H)	; Каталог с удаленными файлами, Число записей (40H) должно быть
+						; синхронизированно с BIOS
+ENDDISKIMAGE	EQU	$-1
+
+; ───────────────────────────────────────────────────────────────────────
+; Загрузчик образа диска с ленты
+; ───────────────────────────────────────────────────────────────────────
+
+LoadDisk:
+	JP	BIOS		; Холодный старт

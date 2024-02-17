@@ -32,8 +32,8 @@ F_DMAOFF	EQU		1AH
 
 		JP      START
 
-;		INCLUDE	"en.inc"
-		INCLUDE	"ru.inc"
+		INCLUDE	"en.inc"
+;		INCLUDE	"ru.inc"
 
 L01E4:  DB      2Eh             ; '.'
         DB      00h

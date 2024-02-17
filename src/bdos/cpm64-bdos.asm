@@ -197,8 +197,8 @@ wait_err:
 	jmp	reboot
 
 ;	error messages
-;	include "en.inc"
-	include "ru.inc"
+	include "en.inc"
+;	include "ru.inc"
 
 
 errflg:
