@@ -9,7 +9,8 @@
 ; + Исправлено "запаздывание" отображения нажатых клавиш (баг в f803h M80/K)
 ; todo В нижнем ОЗУ с DF00H только таблица переходов, а сам BIOS перенесен в верхнее ОЗУ на F000H
 ; + Поддержка принтера
-; todo Поддержка автоповтора ввода на МИКРО-80
+; todo Поддержка автоповтора ввода на МИКРО-80 -> отказ от F803? Можно, для надежности, проверять
+; наличие вектора F81B
 ; todo Поддержка перенаправления (IOByte)
 
 	CPU			8080
@@ -26,7 +27,7 @@
 	JP		0F812h	; 3: Console status
 	JP		0F803h	; 6: Console input
 	JP		TERM	; 9: Console output
-	JP		0F812H	;12: Printer output
+	JP		0F80FH	;12: Printer output
 	JP		0F80Ch	;15: Paper tape punch output
 	JP		0F806h	;18: Paper tape reader input
 	JP		HOME	;21: Move disc head to track 0
@@ -218,6 +219,7 @@ HOME:	LD		C,00h
 ;SETTRK (function 10)
 ;
 ;Set the track in BC - 0 based.
+; 
 
 SETTRK:	
 	if 0
