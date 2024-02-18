@@ -198,7 +198,7 @@ dirblk  set     0               ;;fill with 1's on each loop
         endif
 ;;      not complete, iterate once again
 ;;      shift right and add 1 high order bit
-dirblk  set     ((dirblk << 1) & 0ffffh) | 8000h
+dirblk  set     ((dirblk >> 1) & 0ffffh) | 8000h
         if      dirrem > dirbks
 dirrem  set     dirrem-dirbks
         else

@@ -50,6 +50,7 @@
 ;physical sector number. On a system with hardware skewing, 
 ;this would normally ignore DE and return either BC or BC+1.
 
+	if	0
 	LD	B,00h			;45: Sector translation for skewing
 	EX	DE,HL
 	ADD	HL,BC
@@ -57,6 +58,13 @@
 	LD	(SECTOR),A
 	LD	L,A
 	RET
+	else
+	EX	DE, HL
+	ADD	HL, BC
+	LD	L, (HL)
+	LD	H, 0
+	RET
+	endif
 
 CONIN:
 	CALL	CONST			; Нажато что-нибудь?
@@ -123,7 +131,7 @@ LOAD1:	PUSH		BC
 	LD		A,D
 	CP		09h			; сектор превысил максимум?
 	JP		C,LOAD1
-	LD		D,01h		; сектор
+	LD		D,01h			; сектор
 	INC		C			; дорожка
 	PUSH		BC
 	PUSH		DE
@@ -429,7 +437,7 @@ OLDSP:	DS		2
 ;       [0]     is an optional 0 which forces 16K/directory entry
 
 	disks		1
-	diskdef		0, 1, 8, 1, 1024, 40+64+64+64+64+64+64+64, 40H, 32, 6
+	diskdef		0, 1, 8, 1, 1024, 64+64+64+64+64+64+64+64, 64, 32, 7 ;40+
 	endef
 
 HELLO:	DB		01fh, "*MikrO/80* CP/M 2.2", 0ah, 0

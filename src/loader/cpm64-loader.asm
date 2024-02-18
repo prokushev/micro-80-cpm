@@ -50,6 +50,13 @@ BaseAddress:
 	LD	((RST0_2-$) & 0ffffh), A
 
 	RST	0
+	LD	HL, L3120-$
+	RST	0
+	LD	(Patch1+1-$), HL
+	RST	0
+	LD	(Patch2+1-$), HL
+
+	RST	0
 	LD	HL, HELLO-$
 	CALL	PrintString
 
@@ -104,33 +111,41 @@ MenuLoop:
 	CP	'3'
 	JP	Z, BIOS
 
-	CP	'1'
-	RST	0
-	JP	Z, LoadDisk-$
-
 	CP	'2'
 	RST	0
 	JP	Z, InitDisk-$
+
+;	CP	'1'
+;	RST	0
+;	JP	Z, LoadDisk-$
+
+	CP	'1'
+	RST	0
+	JP	Z, InitSystem-$
+
 	RST	0
 	JP	MenuLoop-$
+
+InitSystem:
+	RST	0
+	LD	HL,ENDC-1-$
+	RST	0
+	LD	BC,DISKIMAGE-1-$
+	LD	SP,ENDC-DISKIMAGE
+	RST	0
+	JP	Copy-$
 
 InitDisk:
 	; Сохранение копии CP/M на квазидиске
 	; (адреса перебираются сверху вниз)
 	RST	0
-	LD	HL, L3120-$
-	RST	0
-	LD	(Patch1+1-$), HL
-	RST	0
-	LD	(Patch2+1-$), HL
-	RST	0
 	LD	HL,ENDDISKIMAGE-$
 	RST	0
-	LD	BC,DISKIMAGE-$
-	DEC	BC
+	LD	BC,DISKIMAGE-1-$
 	LD	SP,ENDDISKIMAGE-DISKIMAGE+1
+
 ;	Дальше нельзя CALL, RST	
-	LD	A,0FEh
+Copy:	LD	A,0FEh
 	OUT	(40h),A			; Подключаем первые 64кб RAMDISKа
 
 L3120:	LD	D,(HL)
@@ -152,6 +167,13 @@ Patch2:
 ;	Дальше можно CALL, RST	
 
 	JP	BIOS			; Холодный старт BIOS
+
+; ───────────────────────────────────────────────────────────────────────
+; Загрузчик образа диска с ленты
+; ───────────────────────────────────────────────────────────────────────
+
+LoadDisk:
+	JP	BIOS		; Холодный старт
 
 ; ───────────────────────────────────────────────────────────────────────
 ; Подпрограмма модификации относительного адреса
@@ -186,7 +208,8 @@ RST0_2:	DB	0
 
 HELLO:	DB	1FH, "zagruz~ik CP/M-80 2.2", 0dh, 0ah, 0
 MENU:	;DB	"1. zagruzitx disk s mg", 0dh, 0ah
-	DB	"2. sozdatx nowyj disk", 0dh, 0ah
+	DB	"1. wosstanowitx sistemu na diske", 0dh, 0ah
+	DB	"2. sozdatx nowyj pustoj disk", 0dh, 0ah
 	DB	"3. ispolxzowatx teku}ij disk", 0dh,0ah
 	DB	"=>"
 	DB	0
@@ -200,9 +223,10 @@ TERMIMAGEEND:
 DISKIMAGE:
 	BINCLUDE	CPM64-CCP.BIN		; size=800H
 	ORG		3400H+800H
-	BINCLUDE	CPM64-BDOS.BIN		; size=1600H
+	BINCLUDE	CPM64-BDOS.BIN		; size=E00H
 	ORG		3400H+1600H
 	BINCLUDE	CPM64-BIOS.BIN		; size=300H
+	DB	3400H+1C00H-$ DUP (0FFH)	; Резервирем 7 дорожек
 ENDC	EQU		$
 
 	; Продолжение образа квазидиска - директория и данные
@@ -249,14 +273,13 @@ ENDC	EQU		$
 	;     AL numbers can either be 8-bit (if there are fewer than 256 blocks on the
 	;    disc) or 16-bit (stored low byte first). 
 
-	ORG	4D00H	
-	DB		40H*32 DUP (0E5H)	; Каталог с удаленными файлами, Число записей (40H) должно быть
-						; синхронизированно с BIOS
+	ORG	3400H+1C00H	;было 4D00H	
+	DB	0,"CH      COM", 0, 0, 0, 6		; 6=size/128
+	DB	1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		; 1=start block
+	DB	64*32-1*32 DUP (0E5H)
+
+	BINCLUDE CH.COM
+	DB	($ & 0ff80h)+80h-$ dup (0)	;выравниваем на размер записи
+
 ENDDISKIMAGE	EQU	$-1
 
-; ───────────────────────────────────────────────────────────────────────
-; Загрузчик образа диска с ленты
-; ───────────────────────────────────────────────────────────────────────
-
-LoadDisk:
-	JP	BIOS		; Холодный старт
