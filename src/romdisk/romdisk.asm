@@ -11,13 +11,12 @@
 
 	org	100h
 
-init:
-	; Здесь перемещаем в верхние адреса памяти
-	; Перехватываем CALL 5
-	; Подумать, что делать с CCP (сделать внешним файлом, как в
-	; (CP/NET?)
-	
-	rst	0
+Start:
+	JP	InitDriver
+
+; todo: Новый BDOS. Его надо выравнять по границе 256 и сделать
+; для него битовую маску для перемещения.
+
 bdosstart:
 ; serial number (not documented in original DRI source file)
 	db	0	; OEM number, low byte
@@ -32,38 +31,17 @@ bdosstart:
 ;	************************************************
 ;	*** relative locations 0009 - 000e           ***
 ;	************************************************
-pererr:	dw	persub	;permanent error subroutine
-selerr:	dw	selsub	;select error subroutine
-roderr:	dw	rodsub	;ro disk error subroutine
-roferr:	dw	rofsub	;ro file error subroutine
+pererr:	dw	0	;permanent error subroutine
+selerr:	dw	0	;select error subroutine
+roderr:	dw	0	;ro disk error subroutine
+roferr:	dw	0	;ro file error subroutine
 
 bdose:
 	; Тут должны перехватить обращение к файлам,
 	; а для прочего звать оригинальный BDOS
-	LD	C, A	; Номер функии
+	LD	A, C	; Номер функии
 	CP	14	; Функции >= 14
 	CP	26	; Функции <=26
-	; может еще какие номера...
-	ret
-
-;	error subroutines
-persub:	;report permanent error
-;	Тут должны звать оригинальный BDOS
-	ret
-
-selsub:	;report select error
-;	Тут должны звать оригинальный BDOS
-	ret
-
-rodsub:	;report write to read/only disk
-;	Тут должны звать оригинальный BDOS
-	ret
-;
-rofsub:	;report read/only file
-;	Тут должны звать оригинальный BDOS
-	ret
-;
-
 ;DRV_SET:
 ;F_OPEN:
 ;F_CLOSE:
@@ -75,3 +53,46 @@ rofsub:	;report read/only file
 ;F_MAKE: -ERROR
 ;F_RENAME: -ERROR
 ;F_DMAOFF:
+	; может еще какие номера...
+	; Если мы не перехватываем функцию bdos, то уходим в старый BDOS
+	DB	0C3h	; JP ...
+OldBDOS:
+	DW	0	; Точка входа в оригинальный BDOS
+bdosend:
+
+; Код ниже уходит в мусорку после инициализации драйвера
+
+InitDriver:
+	; Определяем начало BDOS
+	LD	HL, (6)			; Точка входа в BDOS
+	LD	(OldBDOS), HL		; Сохраняем ее
+	LD	L, 0			; Начало BDOS
+	LD	BC, -(bdosend-bdosstart); Размер драйвера
+	ADD	HL, BC			; Новое начало нашего драйвера
+	PUSH	HL
+	PUSH	HL
+	POP	BC
+	LD	HL, bdosstart		; Текущее местоположение драйвера
+	LD	DE, bdosend-bdosstart	; Размер драйвера
+	ADD	HL, DE
+	EX	DE, HL
+	
+	; todo: Перемещаем HL - начало, DE - конец, BC - новый адрес
+
+	; todo: Накладываем битовую маску
+
+	; todo: копируем серийный номер
+
+	; todo: копируем вектора обработчиков ошибок
+
+	; Перехватываем CALL 5
+	POP	HL			; Новое начало BDOS
+	LD	L, 6			; Смещение точки входа в новый bdos
+	LD	(6), HL			; Патчим CALL 5
+
+	; todo Перехватываем rst 0 для того, чтобы снова грузить наш драйвер при теплом старте.
+	; todo грузим CPP.PRL
+	
+	; todo запускаем CCP
+
+	; Все, теперь драйвер установлен и работает.
