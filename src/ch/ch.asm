@@ -85,9 +85,7 @@ L021C:  LD      HL,(FILEEND)
         JP	WRITESTRIDEXIT
 
 L024E:  LD      E,L0136 & 0FFH
-        CALL	WRITESTRID		; Выводим сообщение
-        CALL	READCHAR
-        CALL    CRLF
+	CALL	WRITESTRIDREADCHAR
         LD      DE,FILESTART
         LD      HL,(FILEEND)
         CALL    CALCCHKSUM		; Подсчет КС
@@ -134,9 +132,7 @@ L02A3:  LD      C,(HL)			; Сохраняем байты
         OR      E
         JP      NZ,L02A3
         LD      E,L0155 & 0FFH
-        CALL	WRITESTRID		; Выводим сообщение
-        CALL	READCHAR
-        CALL    CRLF
+	CALL	WRITESTRIDREADCHAR
         LD      HL,(CHKSUM)
         LD      A,0FFh			; С поиском синхробайта
         CALL    READER
@@ -187,20 +183,10 @@ L030A:  LD      A,(DE)
         LD      H,B
         RET
 
-        ; --- START PROC CRLF ---
-CRLF:	LD      C,C_WRITE
-        LD      E,0DH
-        CALL    BDOS
-        LD      C,C_WRITE
-        LD      E,0AH
-        JP      BDOS
-
         ; --- START PROC LOADFILE ---
 LOADFILE:
 	LD      E,READYLOAD & 0FFH
-        CALL	WRITESTRID		; Выводим сообщение
-        CALL	READCHAR
-        CALL    CRLF
+	CALL	WRITESTRIDREADCHAR
         LD      A,0FFh			; Ожидаем синхробайт
         CALL    READER
         LD      L,A
@@ -282,6 +268,15 @@ F_BDOS:
         LD      DE,FCB1
         JP	BDOS
 
+WRITESTRIDREADCHAR:
+        CALL	WRITESTRID		; Выводим сообщение
+        CALL	READCHAR
+        ; --- START PROC CRLF ---
+CRLF:	LD      E,0DH
+	CALL	WRITECHAR
+        LD      E,0AH
+	JP	WRITECHAR
+
         ; --- START PROC L0302 ---
 L0302:  LD      A,08h
 READER:	JP	TapeReadByte
@@ -293,8 +288,10 @@ WRITESTRID:
 	LD	D, (HELLO & 0FF00H) >> 8
 WRITESTR:
 	LD	C, C_WRITESTR
-	JP	BDOS
-
+	DB	3AH	;LD	A,(word)
+WRITECHAR:
+	LD      C,C_WRITE
+	DB	3AH	;LD	A,(word)
 READCHAR:
         LD      C, C_READ
         JP	BDOS
