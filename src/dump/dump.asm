@@ -216,8 +216,8 @@ DISKR:   ;READ DISK FILE RECORD
          RET
 ;
 ;        FIXED MESSAGE AREA
-;	INCLUDE "en.inc"
-	INCLUDE "ru.inc"
+	INCLUDE "en.inc"
+;	INCLUDE "ru.inc"
 
 ;        VARIABLE AREA
 IBP:     DS   2        ;INPUT BUFFER POINTER

@@ -2,7 +2,7 @@
 ; МИКРО-80/ЮТ-88 CP/M 2.2 CH.COM Программа обмена файлов с лентой
 ; ═══════════════════════════════════════════════════════════════════════
 ; + Обратный порт с ЮТ-88 CP/M 2.2 BIOS на МИКРО-80
-; + Отвязан от МОНИТОРа (замена вызовов МОНИТОРа tape in/tape out на функции punch/reader BDOS)
+; todo Отвязан от МОНИТОРа (замена вызовов МОНИТОРа tape in/tape out на функции punch/reader BDOS)
 ; + Некоторая оптимизация по размеру
 ; todo Поддержка формата записи, отличной от ЮТ-88/МИКРО-80
 
@@ -34,14 +34,16 @@ F_DMAOFF	EQU		1AH
 
 		INCLUDE	"en.inc"
 ;		INCLUDE	"ru.inc"
+		INCLUDE	"syscalls.inc"
 
 STACK		EQU 500H
 FILESTART	EQU 500H
+
 FILEEND:
 	DW      0
-L01E6: 	DB      0E9h
-        DB      00h
-L01E8: 	DB      00h
+CHKSUM:	DW	0
+FILELEN:
+	DW      0
         DB      00h
         DB      00h
 
@@ -88,8 +90,8 @@ L024E:  LD      E,L0136 & 0FFH
         CALL    CRLF
         LD      DE,FILESTART
         LD      HL,(FILEEND)
-        CALL    L0307			;
-        LD      (L01E6),HL
+        CALL    CALCCHKSUM		; Подсчет КС
+        LD      (CHKSUM),HL
         LD      HL,(FILEEND)
         LD      DE,FILESTART
         LD      A,L
@@ -98,8 +100,13 @@ L024E:  LD      E,L0136 & 0FFH
         LD      A,H
         SBC     A,D
         LD      H,A
-        LD      (L01E8),HL
-; Запись в формате МИКРО-80/ЮТ-88
+        LD      (FILELEN),HL
+;
+; Запись в формате:
+; КС     2 байта
+; Длина  2 байта
+; Данные <длина> байт
+;
         LD      L,00h
 L027B:  LD      C,00h			; пишем пилот-тон
         CALL    PUNCHER
@@ -107,12 +114,12 @@ L027B:  LD      C,00h			; пишем пилот-тон
         JP      NZ,L027B
         LD      C,0E6h			; пишем синхробайт
         CALL    PUNCHER
-        LD      HL,(L01E6)
+        LD      HL,(CHKSUM)
         LD      C,L
         CALL    PUNCHER
         LD      C,H
         CALL    PUNCHER
-        LD      HL,(L01E8)
+        LD      HL,(FILELEN)
         LD      C,L
         CALL    PUNCHER
         LD      C,H
@@ -130,7 +137,7 @@ L02A3:  LD      C,(HL)			; Сохраняем байты
         CALL	WRITESTRID		; Выводим сообщение
         CALL	READCHAR
         CALL    CRLF
-        LD      HL,(L01E6)
+        LD      HL,(CHKSUM)
         LD      A,0FFh			; С поиском синхробайта
         CALL    READER
         CP      L
@@ -138,7 +145,7 @@ L02A3:  LD      C,(HL)			; Сохраняем байты
         CALL    L0302			; Чтение без синхробайта
         CP      H
         JP      NZ,L02F7
-        LD      HL,(L01E8)
+        LD      HL,(FILELEN)
         CALL    L0302			; Чтение без синхробайта
         CP      L
         JP      NZ,L02F7
@@ -160,8 +167,9 @@ L02E6:  CALL    L0302			; Чтение без синхробайта
 L02F7:  LD      E,L0182 & 0FFH
         JP	WRITESTRIDEXIT
 
-        ; --- START PROC L0307 ---
-L0307:  LD      BC,0000h
+        ; --- START PROC CALCCHKSUM ---
+CALCCHKSUM:
+	LD	BC,0000h
 L030A:  LD      A,(DE)
         ADD     A,C
         LD      C,A
@@ -198,12 +206,12 @@ LOADFILE:
         LD      L,A
         CALL    L0302			; Чтение без синхробайта
         LD      H,A
-        LD      (L01E6),HL
+        LD      (CHKSUM),HL
         CALL    L0302			; Чтение без синхробайта
         LD      L,A
         CALL    L0302			; Чтение без синхробайта
         LD      H,A
-        LD      (L01E8),HL
+        LD      (FILELEN),HL
         EX      DE,HL
         LD      HL,FILESTART
 L0359:  CALL    L0302			; Чтение без синхробайта
@@ -213,19 +221,20 @@ L0359:  CALL    L0302			; Чтение без синхробайта
         LD      A,D
         OR      E
         JP      NZ,L0359
-        LD      HL,(L01E8)
+        LD      HL,(FILELEN)
         LD      DE,FILESTART
         ADD     HL,DE
-        CALL    L0307
+        CALL    CALCCHKSUM		; Подсчет КС
         EX      DE,HL
-        LD      HL,(L01E6)
+        LD      HL,(CHKSUM)
         LD      A,D
         CP      H
-        JP      NZ,L037C
+        JP      NZ,READERROR
         LD      A,E
         CP      L
         JP      Z,L0387
-L037C:  LD      E,L0174 & 0FFH
+READERROR:
+	LD	E,MSG_READERROR & 0FFH
         JP	WRITESTRIDEXIT
 
 L0387:  LD      C,F_MAKE
@@ -254,14 +263,14 @@ L03CD:  LD      HL,(FILEEND)
         LD      DE,0080h
         ADD     HL,DE
         LD      (FILEEND),HL
-        LD      HL,(L01E8)
+        LD      HL,(FILELEN)
         LD      A,L
         SUB     80h
         LD      L,A
         LD      A,H
         SBC     A,00h
         LD      H,A
-        LD      (L01E8),HL
+        LD      (FILELEN),HL
         OR      L
         JP      NZ,L03A5
         LD      C,F_CLOSE
@@ -275,18 +284,10 @@ F_BDOS:
 
         ; --- START PROC L0302 ---
 L0302:  LD      A,08h
-READER:	PUSH	HL
-	PUSH	DE
-	LD	C, A_READ
-	CALL	BDOS
-	POP	DE
-	POP	HL
-	RET
+READER:	JP	TapeReadByte
 
 PUNCHER:
-	LD	E, C
-	LD	C, A_WRITE
-	JP	BDOS
+	JP	TapeWriteByte
 
 WRITESTRID:
 	LD	D, (HELLO & 0FF00H) >> 8

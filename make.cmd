@@ -12,8 +12,8 @@ p2bin src\bdos\cpm64-bdos.p bin\cpm64-bdos.bin
 asw -lU -i . src\ccp\cpm64-ccp.asm > cpm64-ccp.lst
 p2bin src\ccp\cpm64-ccp.p bin\cpm64-ccp.bin
 
-asw -lU src\ch\ch-com.asm > ch-com.lst
-p2bin src\ch\ch-com.p com\ch.com
+asw -lU -i . src\ch\ch.asm > ch.lst
+p2bin src\ch\ch.p com\ch.com
 
 asw -lU -i . -i bin -i com src\loader\cpm64-loader.asm > cpm64-loader.lst
 p2bin src\loader\cpm64-loader.p bin\cpm64-loader.bin
