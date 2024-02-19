@@ -108,7 +108,7 @@ mon3: procedure(f,a) address external;
 
 status: procedure;
     declare copyright(*) byte data (
-    '   Copyright (c) 1979, Digital Research');
+    '   COPYRIGHT (C) 1979, DIGITAL RESEARCH');
     /* dummy outer procedure 'status' will start at 100h */
     /* determine status of currently selected disk */
 
@@ -360,7 +360,7 @@ count: procedure(mode) address;
     end count;
 
 abortmsg: procedure;
-    call print(.('** Aborted **',0));
+    call print(.('** ABORTED **',0));
     end abortmsg;
 
 userstatus: procedure;
@@ -368,9 +368,9 @@ userstatus: procedure;
     declare i byte;
     declare user(32) byte;
     declare ufcb(*) byte data ('????????????',0,0,0);
-    call print(.('Active User :',0));
+    call print(.('ACTIVE USER :',0));
     call pdecimal(getuser,10);
-    call print(.('Active Files:',0));
+    call print(.('ACTIVE FILES:',0));
         do i = 0 to last(user);
         user(i) = false;
         end;
@@ -401,26 +401,26 @@ drivestatus: procedure;
     call print(.('    ',0));
     call printchar(cselect+'A');
     call printchar(':');
-    call printx(.(' Drive Characteristics',0));
+    call printx(.(' DRIVE CHARACTERISTICS',0));
     rpb = shl(double(1),blkshf); /* records/block=2**blkshf */
     if (rpd := (maxall+1) * rpb) = 0 and (rpb <> 0) then
         call print(.('65536: ',0)); else
         call pv(rpd);
-        call printx(.('128 Byte Record Capacity',0));
+        call printx(.('128 BYTE RECORD CAPACITY',0));
     call pv(count(false));
-        call printx(.('Kilobyte Drive  Capacity',0));
+        call printx(.('KILOBYTE DRIVE  CAPACITY',0));
     call pv(dirmax+1);
-        call printx(.('32  Byte Directory Entries',0));
+        call printx(.('32  BYTE DIRECTORY ENTRIES',0));
     call pv(shl(chksiz,2));
-        call printx(.('Checked  Directory Entries',0));
+        call printx(.('CHECKED  DIRECTORY ENTRIES',0));
     call pv((extmsk+1) * 128);
-        call printx(.('Records/ Extent',0));
+        call printx(.('RECORDS/ EXTENT',0));
     call pv(rpb);
-        call printx(.('Records/ Block',0));
+        call printx(.('RECORDS/ BLOCK',0));
     call pv(scptrk);
-        call printx(.('Sectors/ Track',0));
+        call printx(.('SECTORY/ TRACK',0));
     call pv(offset);
-        call printx(.('Reserved Tracks',0));
+        call printx(.('RESERVED TRACKS',0));
     call crlf;
     end drivestatus;
 
@@ -494,7 +494,7 @@ devreq: procedure byte;
             iobyte = ioval; j = 0;
                 do i = 0 to 3;
                 call prname(.devl(shl(i,2)));
-                call printx(.(' is ',0));
+                call printx(.(' IS ',0));
                 call prname(.devr(shl(iobyte and 11b,2)+j));
                 j = j + 16; iobyte = shr(iobyte,2);
                 call crlf;
@@ -502,12 +502,12 @@ devreq: procedure byte;
             end; else /* not dev: */
         if i = 6 then /* list possible assignment */
             do;
-            call print(.('Temp R/O Disk: d:=R/O',0));
-            call print(.('Set Indicator: d:filename.typ ',
+            call print(.('TEMP R/O DISK: d:=R/O',0));
+            call print(.('SET INDICATOR: D:FILENAME.TYP ',
                           '$R/O $R/W $SYS $DIR',0));
-            call print(.('Disk Status  : DSK: d:DSK:',0));
-            call print(.('User Status  : USR:',0));
-            call print(.('Iobyte Assign:',0));
+            call print(.('DISK STATUS  : DSK: D:DSK:',0));
+            call print(.('USER STATUS  : USR:',0));
+            call print(.('IOBYTE ASSIGN:',0));
                 do i = 0 to 3; /* each line shows one device */
                 call crlf;
                 call prname(.devl(shl(i,2)));
@@ -529,12 +529,12 @@ devreq: procedure byte;
             j = shl(i:=i-1,4);
             call scan;
             if accum(0) <> '=' then
-                do; call print(.('Bad Delimiter',0));
+                do; call print(.('BAD DELIMITER',0));
                 return true;
                 end;
             call scan;
             if (j:=match(.devr(j),4)-1) = 255 then
-                do; call print(.('Invalid Assignment',0));
+                do; call print(.('INVALID ASSIGNMENT',0));
                 return true;
                 end;
             iobyte = 1111$1100b; /* construct mask */
@@ -548,7 +548,7 @@ devreq: procedure byte;
         call scan;
         if accum(0) = ' ' then return true;
         if accum(0) <> ',' then
-            do; call print(.('Bad Delimiter',0));
+            do; call print(.('BAD DELIMITER',0));
             return true;
             end;
         end; /* of do forever */
@@ -583,7 +583,7 @@ prcount: procedure;
 
 pralloc: procedure;
     /* print allocation for current disk */
-    call print (.('Bytes Remaining On ',0));
+    call print (.('BYTES REMAINING ON ',0));
     call comp$alloc;
     call prcount;
     end pralloc;
@@ -603,7 +603,7 @@ prstatus: procedure;
             if low(rodisk) then
                 call printchar('O'); else
                 call printchar('W');
-            call printx(.(', Space: ',0));
+            call printx(.(', SPACE: ',0));
             call prcount;
             end;
         login = shr(login,1); rodisk = shr(rodisk,1);
@@ -670,7 +670,7 @@ getfile: procedure;
             return not (sizeset := true);
         /* must be a parameter */
         if (scase := match(.fstat,4)) = 0 then
-            call print(.('Invalid File Indicator',0));
+            call print(.('INVALID FILE INDICATOR',0));
         return true;
         end setfilestatus;
 
@@ -723,7 +723,7 @@ getfile: procedure;
             call multi16;
             /* fcbsa set to next to fill */
             if (fcbn > fcbmax) or (fcbsa + 16) >= memsize then
-                do; call print(.('** Too Many Files **',0));
+                do; call print(.('** TOO MANY FILES **',0));
                 i = 0; fcbn = 1;
                 call multi16;
                 end;
@@ -755,7 +755,7 @@ getfile: procedure;
 
     display: /* label for debug */
     /* now display the collected data */
-    if fcbn = 0 then call print(.('File Not Found',0)); else
+    if fcbn = 0 then call print(.('FILE NOT FOUND',0)); else
     if scase = 255 then /* display collected data */
         do;
         /* sort the file names in ascending order */
@@ -777,9 +777,9 @@ getfile: procedure;
                 end;
             end;
         if sizeset then
-            call print(.(' Size ',0)); else
+            call print(.(' SIZE ',0)); else
             call crlf;
-        call printx(.(' Recs  Bytes  Ext Acc',0));
+        call printx(.(' RECS  BYTES  EXT ACC',0));
         l = 0;
             do while l < fcbn;
             i = finx(l); /* i is the index to next in order */
@@ -840,7 +840,7 @@ getfile: procedure;
             call move(16,fcbsa,fcba);
             fcb(0) = 0; /* in case matched user# > 0 */
             call setind; /* indicators set */
-            call printx(.(' set to ',0));
+            call printx(.(' SET TO ',0));
             call printx(.fstatlist(shl(scase,2)));
             l = l + 1;
             end;
@@ -857,7 +857,7 @@ setdrivestatus: procedure;
             do; call setdisk; /* a: ... */
             call writeprot;
             end; else
-        call print(.('Invalid Disk Assignment',0));
+        call print(.('INVALID DISK ASSIGNMENT',0));
         end;
     else /* not a disk assignment */
         do; call setdisk;
@@ -871,7 +871,7 @@ oldsp = stackptr;
 stackptr = .stack(length(stack));
 /* process request */
 if version < cpmversion then
-    call print(.('Wrong CP/M Version (Requires 2.0)',0));
+    call print(.('WRONG CP/M VERSION (REQUIRES 2.0)',0));
     else
         do;
         /* size display if $S set in command */
