@@ -41,6 +41,7 @@ locate stat.mod code(0100H) stacksize(100)
 objcpm stat
 cd ..\..
 
+bin2rk src\stat\stat.com rk\stat.rk 256
 bin2rk bin\loader.bin rk\loader.rk 12544
 bin2rk com\ch.com rk\ch.rk 256
 
