@@ -32,6 +32,15 @@ p2bin obj\dump.p com\dump.com
 asw -qLU src\romdisk\romdisk.asm -olist log\romdisk.lst -o obj\romdisk.p
 p2bin obj\romdisk.p com\romdisk.com
 
+cd src\stat\
+asm80 MCD80A.ASM
+SET :F1:=.
+plm80 stat.plm pagewidth(100) debug optimize
+link mcd80a.obj,stat.obj,plm80.lib to stat.mod
+locate stat.mod code(0100H) stacksize(100) 
+objcpm stat
+cd ..\..
+
 bin2rk bin\loader.bin rk\loader.rk 12544
 bin2rk com\ch.com rk\ch.rk 256
 
