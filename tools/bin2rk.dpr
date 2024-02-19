@@ -13,14 +13,14 @@ f,f1:file of byte;
   res:integer;
 begin
   writeln('Bin2rk 2.0 by Kakos_nonos');
-  if Paramstr(1)<>'' then
+  if (Paramstr(1)<>'') and (Paramstr(2)<>'') then
   begin
-   val(paramstr(2),start,err);
+   val(paramstr(3),start,err);
   end
   else start:=0;
-  if paramstr(1)='' then
+  if (paramstr(1)='') and (paramstr(2)='') then
   begin
-   writeln('Use bin2rk file [addr]');
+   writeln('Use bin2rk infile outfile [addr]');
    halt;
   end;
   assignfile(f,paramstr(1));
@@ -41,14 +41,14 @@ begin
    cs:=cs+tb+(tb shl 8);
   end;
   closefile(f);
-  assignfile(f,ChangeFileExt(paramstr(1),'.rk'));
+  assignfile(f,paramstr(2)(*ChangeFileExt(paramstr(1),'.rk')*));
   {$I-}
   rewrite(f);
   {$I+}
     res := IOResult;
   if res<>0 then
   begin
-   writeln('Error create file '+ChangeFileExt(paramstr(1),'.rk'));
+   writeln('Error create file '+paramstr(2)(*ChangeFileExt(paramstr(1),'.rk')*));
    halt;
   end;
   u:=start div 256; write(f,u);

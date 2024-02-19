@@ -32,7 +32,7 @@ p2bin obj\dump.p com\dump.com
 asw -qLU src\romdisk\romdisk.asm -olist log\romdisk.lst -o obj\romdisk.p
 p2bin obj\romdisk.p com\romdisk.com
 
-bin2rk bin\loader.bin 12544
-bin2rk com\ch.com 256
+bin2rk bin\loader.bin rk\loader.rk 12544
+bin2rk com\ch.com rk\ch.rk 256
 
 :asw -1l comheader.asm > comheader.lst
