@@ -45,6 +45,8 @@ link :F2:mcd80a.obj,:F2:stat.obj,:F3:plm80.lib to :F2:stat.mod
 locate :F2:stat.mod to :F4:stat code(0100H) stacksize(100)
 objcpm :F4:stat
 del com\stat
+del com\stat.lin
+del com\stat.sym
 
 bin2rk src\stat\stat.com rk\stat.rk 256
 bin2rk bin\loader.bin rk\loader.rk 12544
