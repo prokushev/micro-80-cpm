@@ -34,13 +34,12 @@ p2bin obj\romdisk.p com\romdisk.com
 
 
 SET :F1:=src\stat\
-SET :F0:=src\stat\
 SET :F2:=obj
 SET :F3:=lib
 SET :F4:=com
 SET :F5:=log
-asm80 MCD80A.ASM object(:F2:mcd80a.obj) print(:F5:mcd80.lst)
-plm80 stat.plm pagewidth(100) debug optimize object(:F2:stat.obj) print(:F5:stat.lst)
+asm80 :F1:MCD80A.ASM object(:F2:mcd80a.obj) print(:F5:mcd80.lst)
+plm80 :F1:stat.plm pagewidth(100) debug optimize object(:F2:stat.obj) print(:F5:stat.lst)
 link :F2:mcd80a.obj,:F2:stat.obj,:F3:plm80.lib to :F2:stat.mod
 locate :F2:stat.mod to :F4:stat code(0100H) stacksize(100)
 objcpm :F4:stat
@@ -48,8 +47,47 @@ del com\stat
 del com\stat.lin
 del com\stat.sym
 
-bin2rk src\stat\stat.com rk\stat.rk 256
+SET :F1:=src\pip\
+plm80 :F1:pip.plm pagewidth(100) debug optimize object(:F2:pip.obj) print(:F5:pip.lst)
+link :F2:mcd80a.obj,:F2:pip.obj,:F3:plm80.lib to :F2:pip.mod
+locate :F2:pip.mod to :F4:pip code(0100H) stacksize(100)
+objcpm :F4:pip
+del com\pip
+del com\pip.lin
+del com\pip.sym
+
+SET :F1:=src\load\
+plm80 :F1:load.plm pagewidth(100) debug optimize object(:F2:load.obj) print(:F5:load.lst)
+link :F2:mcd80a.obj,:F2:load.obj,:F3:plm80.lib to :F2:load.mod
+locate :F2:load.mod to :F4:load code(0100H) stacksize(100)
+objcpm :F4:load
+del com\load
+del com\load.lin
+del com\load.sym
+
+SET :F1:=src\ed\
+plm80 :F1:ed.plm pagewidth(100) debug optimize object(:F2:ed.obj) print(:F5:ed.lst)
+link :F2:mcd80a.obj,:F2:ed.obj,:F3:plm80.lib to :F2:ed.mod
+locate :F2:ed.mod to :F4:ed code(0100H) stacksize(100)
+objcpm :F4:ed
+del com\ed
+del com\ed.lin
+del com\ed.sym
+
+SET :F1:=src\submit\
+plm80 :F1:submit.plm pagewidth(100) debug optimize object(:F2:submit.obj) print(:F5:submit.lst)
+link :F2:mcd80a.obj,:F2:submit.obj,:F3:plm80.lib to :F2:submit.mod
+locate :F2:submit.mod to :F4:submit code(0100H) stacksize(100)
+objcpm :F4:submit
+del com\submit
+del com\submit.lin
+del com\submit.sym
+
 bin2rk bin\loader.bin rk\loader.rk 12544
+bin2rk com\stat.com rk\stat.rk 256
+bin2rk com\pip.com rk\pip.rk 256
+bin2rk com\load.com rk\load.rk 256
+bin2rk com\ed.com rk\ed.rk 256
 bin2rk com\ch.com rk\ch.rk 256
 
 :asw -1l comheader.asm > comheader.lst
