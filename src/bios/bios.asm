@@ -28,7 +28,11 @@
 	JP	BOOT			;-3: Cold start routine
 	JP	WBOOT			; 0: Warm boot - reload command processor
 	JP	GetKeyboardStatus	; 3: Console status
+	if	M80FIX=2
+	JP	CONIN
+	else
 	JP	InputSymbol		; 6: Console input
+	endif
 	JP	TERM			; 9: Console output
 	JP	ListCharFromC		;12: Printer output
 	JP	TapeWriteByte		;15: Paper tape punch output
@@ -68,6 +72,7 @@
 	RET
 	endif
 
+	if	M80FIX=1
 CONIN:
 	CALL	CONST			; Нажато что-нибудь?
 	OR	A
@@ -96,7 +101,19 @@ CONST:
 	LD	(LASTKEY), A
 	LD	A, 0FFH		; Ставим статус, что нажато
 	RET
+	endif
+	if	M80FIX=2
+CONIN:	CALL	InputSymbol
+	PUSH	AF
+Unpress:
+	CALL	GetKeyboardStatus	; Ждем отпускания
+	INC	A		
+	JP	Z, Unpress
+	POP	AF
+	RET
+	endif
 
+	
 ;WBOOT (function 1)
 ;
 ; Reloads the command processor and (on some systems) 
@@ -151,6 +168,7 @@ LOAD1:	PUSH		BC
 
 BOOT:	LD		SP,0100h
 
+	if	M80FIX=1
 ; ───────────────────────────────────────────────────────────────────────
 ; Проверяем наличие Микро-80 (Монитор РК)
 ; В этом МОНИТОРе неправильно реализован автоповтор, что приводит
@@ -174,6 +192,7 @@ BOOT:	LD		SP,0100h
 	LD	(HL), D
 
 NORMALF800:
+	endif
 	LD	HL,HELLO
 	CALL	PrintString
 

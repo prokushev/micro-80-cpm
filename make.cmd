@@ -4,6 +4,7 @@ md log
 md obj
 
 SET PATH=tools;%PATH%
+SET PLM80 %CD%
 
 asw -qLU -i inc src\term\term.asm -olist log\term.lst -o obj\term.p
 p2bin obj\term.p bin\term.bin
@@ -66,7 +67,7 @@ del com\load.lin
 del com\load.sym
 
 SET :F1:=src\ed\
-plm80 :F1:ed.plm pagewidth(100) debug optimize object(:F2:ed.obj) print(:F5:ed.lst)
+plm80 :F1:ed.plm pagewidth(80) debug  object(:F2:ed.obj) print(:F5:ed.lst)
 link :F2:mcd80a.obj,:F2:ed.obj,:F3:plm80.lib to :F2:ed.mod
 locate :F2:ed.mod to :F4:ed code(0100H) stacksize(100)
 objcpm :F4:ed
