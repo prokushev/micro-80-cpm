@@ -84,6 +84,15 @@ del com\submit
 del com\submit.lin
 del com\submit.sym
 
+SET :F1:=src\asm\
+asm80 :F1:AS0COM.ASM object(:F2:AS0COM.obj) print(:F5:AS0COM.lst)
+asm80 :F1:AS1IO.ASM object(:F2:AS1IO.obj) print(:F5:AS1IO.lst)
+asm80 :F1:AS2SCA.ASM object(:F2:AS2SCA.obj) print(:F5:AS2SCA.lst)
+asm80 :F1:AS3SYM.ASM object(:F2:AS3SYM.obj) print(:F5:AS3SYM.lst)
+asm80 :F1:AS4SEA.ASM object(:F2:AS4SEA.obj) print(:F5:AS4SEA.lst)
+asm80 :F1:AS5OPE.ASM object(:F2:AS5OPE.obj) print(:F5:AS5OPE.lst)
+asm80 :F1:AS6MAI.ASM object(:F2:AS6MAI.obj) print(:F5:AS6MAI.lst)
+
 rem В формате МОНИТОРа
 bin2rk bin\loader.bin rk\loader.rk8 12544
 bin2rk com\ch.com rk\ch.rk8 256
@@ -95,5 +104,6 @@ bin2ch com\load.com rk\load.rk
 bin2ch com\ed.com rk\ed.rk
 bin2ch com\submit.com rk\submit.rk
 bin2ch com\ch.com rk\ch.rk
+bin2ch com\dump.com rk\dump.rk
 
 :asw -1l comheader.asm > comheader.lst
