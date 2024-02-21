@@ -84,11 +84,16 @@ del com\submit
 del com\submit.lin
 del com\submit.sym
 
-bin2rk bin\loader.bin rk\loader.rk 12544
-bin2rk com\stat.com rk\stat.rk 256
-bin2rk com\pip.com rk\pip.rk 256
-bin2rk com\load.com rk\load.rk 256
-bin2rk com\ed.com rk\ed.rk 256
-bin2rk com\ch.com rk\ch.rk 256
+rem В формате МОНИТОРа
+bin2rk bin\loader.bin rk\loader.rk8 12544
+bin2rk com\ch.com rk\ch.rk8 256
+
+rem В формате CH.COM
+bin2ch com\stat.com rk\stat.rk
+bin2ch com\pip.com rk\pip.rk
+bin2ch com\load.com rk\load.rk
+bin2ch com\ed.com rk\ed.rk
+bin2ch com\submit.com rk\submit.rk
+bin2ch com\ch.com rk\ch.rk
 
 :asw -1l comheader.asm > comheader.lst

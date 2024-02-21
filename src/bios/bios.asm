@@ -7,7 +7,7 @@
 ; + Формирование структур диска сделана через библиотеку DISKDEF из CP/M Alteration Guide
 ; + Сделана поддержка не 4 модулей памяти (как в ЮТ-88), а 8-ми (как в МИКРО-80)
 ; + Исправлено "запаздывание" отображения нажатых клавиш (баг в f803h M80/K)
-; + Исправлена неверное количество зарезервированных дорожен
+; + Исправлено неверное количество зарезервированных дорожек
 ; todo В нижнем ОЗУ с DF00H только таблица переходов, а сам BIOS перенесен в верхнее ОЗУ на F000H
 ; + Поддержка принтера
 ; todo Поддержка автоповтора ввода на МИКРО-80 -> отказ от F803? Можно, для надежности, проверять
@@ -114,17 +114,16 @@ Unpress:
 	endif
 
 	
-;WBOOT (function 1)
+; WBOOT (п/п 1)
 ;
-; Reloads the command processor and (on some systems) 
-; the BDOS as well. How it does this is implementation-dependent;
-; it may use the reserved tracks of a floppy disc or extra memory.
+; Перезагружает командный процессор и BDOS.
+; CCP и BDOS хранится на зарезервированных дорожках квазидиска.
 
 WBOOT:  LD		SP,0080h
 	LD		C,00h
 	CALL		SELDSK
 	CALL		HOME
-	LD		B,2Ch		; количество блоков (CPP+BDOS)
+	LD		B,(BIOS-CCP)/128; 2Ch количество блоков (CPP+BDOS)
 	LD		C,00h		; дорожка
 	LD		D,01h		; сектор
 	LD		HL,CCP
@@ -161,10 +160,9 @@ LOAD1:	PUSH		BC
 	POP		BC
 	JP		LOAD1
 
-;BOOT (function 0)
+; BOOT (п/п 0)
 ;
-;This function is completely implementation-dependent;
-;and should never be called from user code.
+; Холодная загрузка. Выполняется при первом запуске системы.
 
 BOOT:	LD		SP,0100h
 
@@ -214,24 +212,24 @@ GOCPM:	DI				; На некоторых машинах имеется но где
 	LD	C,A
 	JP	CCP
 
-;SELDSK (function 9)
+; SELDSK (п/п 9)
 ;
-;Select the disc drive in register C (0=A:, 1=B: ...).
-;Called with E=0 or 0FFFFh.
+; Выбор привода диска, указанного в регистре C (0=A:, 1=B: ...).
+; Called with E=0 or 0FFFFh.
 ;
-;If bit 0 of E is 0, then the disc is logged in as if new;
-;if the format has to be determined from the boot sector,
-;for example, this will be done.
+; If bit 0 of E is 0, then the disc is logged in as if new;
+; if the format has to be determined from the boot sector,
+; for example, this will be done.
 ;
-;If bit 0 if E is 1, then the disc has been logged in before.
-;The disc is not accessed; the DPH address (or zero) is 
-;returned immediately.
+; If bit 0 if E is 1, then the disc has been logged in before.
+; The disc is not accessed; the DPH address (or zero) is 
+; returned immediately.
 ;
-;SELDSK returns the address of a Disc Parameter Header in HL. 
-;The exact format of a DPH varies between CP/M versions; note 
-;that under CP/M 3, the DPH is in memory bank 0 and probably 
-;not visible to programs. If the disc could not be selected 
-;it returns HL=0.
+; SELDSK returns the address of a Disc Parameter Header in HL. 
+; The exact format of a DPH varies between CP/M versions; note 
+; that under CP/M 3, the DPH is in memory bank 0 and probably 
+; not visible to programs. If the disc could not be selected 
+; it returns HL=0.
 
 SELDSK:	LD	HL,0000h
 	LD	A,C
@@ -240,13 +238,13 @@ SELDSK:	LD	HL,0000h
 	LD	HL,dpbase
 	RET
 
-;HOME (function 8)
+; HOME (п/п 8)
 ;
 ;Move the current drive to track 0.
 
 HOME:	LD	C,00h
 
-;SETTRK (function 10)
+; SETTRK (п/п 10)
 ;
 ;Set the track in BC - 0 based.
 ; 
@@ -330,7 +328,7 @@ LDB59:	LD		HL,TRACK
 	LD		(HL),C
 	RET
 
-;SETSEC (function 11)
+; SETSEC (п/п 11)
 ;
 ;Set the sector in BC. Under CP/M 1 and 2 a sector 
 ;is 128 bytes. Under CP/M 3 the sector size is given
@@ -346,7 +344,7 @@ SETSEC:	LD		HL,SECTOR
 	LD		(HL),C
 	RET
 
-;SETDMA (function 12)
+;SETDMA (п/п 12)
 ;
 ;The next disc operation will read its data from 
 ;(or write its data to) the address given in BC.
@@ -356,7 +354,7 @@ SETDMA:	LD		L,C
 	LD		(DMAAD),HL
 	RET
 
-;READ (function 13)
+;READ (п/п 13)
 ;
 ;Read the currently set track and sector at the 
 ;current DMA address. Returns A=0 for OK, 1 for 
@@ -386,7 +384,7 @@ ENDI0:	LD		A,0FFh
 	XOR		A
 	RET
 
-;WRITE (function 14)
+;WRITE (п/п 14)
 ;
 ;Write the currently set track and sector. C contains a deblocking code:
 ;
@@ -446,15 +444,15 @@ DMAAD:	DS		2
 PHAD:	DS		2
 OLDSP:	DS		2
 
-;       dn      is the disk number 0,1,...,n-1
-;       fsc     is the first sector number (usually 0 or 1)
-;       lsc     is the last sector number on a track
-;       skf     is optional "skew factor" for sector translate
-;       bls     is the data block size (1024,2048,...,16384)
+;       dn      номер диска 0,1,...,n-1
+;       fsc     номер первого сектора на дорожке (обычно 0 или 1)
+;       lsc     номер последнего сектора на дорожке
+;       skf     не обязательный параметр "коэффициент сдвига" для преобразования номера сектора
+;       bls     размер блока данных (1024,2048,...,16384)
 ;       dks     is the disk size in bls increments (word)
-;       dir     is the number of directory elements (word)
-;       cks     is the number of dir elements to checksum
-;       ofs     is the number of tracks to skip (word)
+;       dir     число записей каталога (word)
+;       cks     число контрольных записей каталога (определение факта смены диска)
+;       ofs     число пропускаемых дорожек (word)
 ;       [0]     is an optional 0 which forces 16K/directory entry
 
 	disks		1

@@ -4,7 +4,7 @@
 ; + Обратный порт с ЮТ-88 CP/M 2.2 BIOS на МИКРО-80
 ; todo Отвязан от МОНИТОРа (замена вызовов МОНИТОРа tape in/tape out на функции punch/reader BDOS) (не получится, т.к. BDOS портит регистр А - управление синхробайтом. Или передавать через E?)
 ; + Некоторая оптимизация по размеру
-; todo Поддержка формата записи, отличной от ЮТ-88/МИКРО-80
+
 
 		CPU		8080
 		Z80SYNTAX	EXCLUSIVE
@@ -165,11 +165,11 @@ L02F7:  LD      E,L0182 & 0FFH
         ; --- START PROC CALCCHKSUM ---
 CALCCHKSUM:
 	LD	BC,0000h
-L030A:  LD      A,(DE)
+L030A:  LD      A,(DE)		; BC=BC+(DE)
         ADD     A,C
         LD      C,A
         LD      A,00h
-        ADC     A,B
+        ADC     A,B		
         LD      B,A
         INC     DE
         LD      A,D
