@@ -84,14 +84,28 @@ del com\submit
 del com\submit.lin
 del com\submit.sym
 
-SET :F1:=src\asm\
-asm80 :F1:AS0COM.ASM object(:F2:AS0COM.obj) print(:F5:AS0COM.lst)
-asm80 :F1:AS1IO.ASM object(:F2:AS1IO.obj) print(:F5:AS1IO.lst)
-asm80 :F1:AS2SCA.ASM object(:F2:AS2SCA.obj) print(:F5:AS2SCA.lst)
-asm80 :F1:AS3SYM.ASM object(:F2:AS3SYM.obj) print(:F5:AS3SYM.lst)
-asm80 :F1:AS4SEA.ASM object(:F2:AS4SEA.obj) print(:F5:AS4SEA.lst)
-asm80 :F1:AS5OPE.ASM object(:F2:AS5OPE.obj) print(:F5:AS5OPE.lst)
-asm80 :F1:AS6MAI.ASM object(:F2:AS6MAI.obj) print(:F5:AS6MAI.lst)
+asw -qLU -i inc src\asm\AS0COM.asm -olist log\AS0COM.lst -o obj\AS0COM.p
+p2bin obj\AS0COM.p bin\AS0COM.bin
+
+asw -qLU -i inc src\asm\AS1IO.asm -olist log\AS1IO.lst -o obj\AS1IO.p
+p2bin obj\AS1IO.p bin\AS1IO.bin
+
+asw -qLU -i inc src\asm\AS2SCA.asm -olist log\AS2SCA.lst -o obj\AS2SCA.p
+p2bin obj\AS2SCA.p bin\AS2SCA.bin
+
+asw -qLU -i inc src\asm\AS3SYM.asm -olist log\AS3SYM.lst -o obj\AS3SYM.p
+p2bin obj\AS3SYM.p bin\AS3SYM.bin
+
+asw -qLU -i inc src\asm\AS4SEA.asm -olist log\AS4SEA.lst -o obj\AS4SEA.p
+p2bin obj\AS4SEA.p bin\AS4SEA.bin
+
+asw -qLU -i inc src\asm\AS5OPE.asm -olist log\AS5OPE.lst -o obj\AS5OPE.p
+p2bin obj\AS5OPE.p bin\AS5OPE.bin
+
+asw -qLU -i inc src\asm\AS6MAI.asm -olist log\AS6MAI.lst -o obj\AS6MAI.p
+p2bin obj\AS6MAI.p bin\AS6MAI.bin
+
+copy /b bin\AS0COM.bin + /b bin\AS1IO.bin + /b bin\AS2SCA.bin + /b bin\AS3SYM.bin + /b bin\AS4SEA.bin + /b bin\AS5OPE.bin + /b bin\AS6MAI.bin /b com\asm.com
 
 rem В формате МОНИТОРа
 bin2rk bin\loader.bin rk\loader.rk8 12544
@@ -105,5 +119,6 @@ bin2ch com\ed.com rk\ed.rk
 bin2ch com\submit.com rk\submit.rk
 bin2ch com\ch.com rk\ch.rk
 bin2ch com\dump.com rk\dump.rk
+bin2ch com\asm.com rk\asm.rk
 
 :asw -1l comheader.asm > comheader.lst
