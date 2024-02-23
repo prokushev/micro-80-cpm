@@ -28,7 +28,7 @@ mon2: procedure(f,a) byte external;
 
 declare
     copyright(*) byte data
-        (' copyright(c) 1977, digital research ');
+        (' COPYRIGHT(C) 1977, DIGITAL RESEARCH ');
 
 declare
     ln(5) byte initial('001 $'),
@@ -120,7 +120,7 @@ declare oldsp address;   /* calling program's stack pointer */
 error: procedure(a);
     declare a address;
     call print(.(cr,lf,'$'));
-    call print(.('Error On Line $'));
+    call print(.('ERROR ON LINE $'));
     call print(.ln1);
     call print(a);
     stackptr = oldsp;
@@ -138,7 +138,7 @@ setup: procedure;
     call move(.('SUB'),.sfcb(9),3); /* set file type to sub */
     call open(.sfcb(0));
     if dcnt = 255 then
-        call error(.('No ''SUB'' File Present$'));
+        call error(.('NO ''SUB'' FILE PRESENT$'));
     /* otherwise file is open - read subsequent data */
     sbp = 128; /* causes read below */
 
@@ -172,7 +172,7 @@ getsource: procedure byte;
 writebuff: procedure;
     /* write the contents of the buffer to disk */
     if diskwrite(.dfcb) <> 0 then /* error */
-        call error(.('Disk Write Error$'));
+        call error(.('DISK WRITE ERROR$'));
     end writebuff;
 
 declare rbuff(2048) byte, /* jcl buffer */
@@ -204,11 +204,11 @@ fillrbuff: procedure;
     putrbuff: procedure(b);
        declare b byte;
         if (rbp := rbp + 1) > last(rbuff) then
-            call error(.('Command Buffer Overflow$'));
+            call error(.('COMMAND BUFFER OVERFLOW$'));
         rbuff(rbp) = b;
         /* len: c1 ... c125 :00:$ = 128 chars */
         if (rlen := rlen + 1) > 125 then
-            call error(.('Command Too Long$'));
+            call error(.('COMMAND TOO LONG$'));
         end putrbuff;
 
     declare (reading,b) byte;
@@ -224,7 +224,7 @@ fillrbuff: procedure;
                        /* $$ replaced by $ */
                        call putrbuff(b); else
                    if (b := b - '0') > 9 then
-                       call error(.('Parameter Error$')); else
+                       call error(.('PARAMETER ERROR$')); else
                        do; /* find string 'b' in sstring */
                        ssbp = 0; call deblankparm; /* ready to scan sstring */
                             do while b <> 0; b = b - 1;
@@ -242,7 +242,7 @@ fillrbuff: procedure;
                 if b = '^' then /* control character */
                     do; /* must be ^a ... ^z */
                     if (b:=getsource - 'a') > 25 then
-                        call error(.('Invalid Control Character$'));
+                        call error(.('INVALID CONTROL CHARACTER$'));
                     else
                          call putrbuff(b+1);
                     end; else /* not $ or ^ */
@@ -265,7 +265,7 @@ makefile: procedure;
     call delete(.dfcb);
     drec = 0; /* zero the next record to write */
     call make(.dfcb);
-    if dcnt = 255 then call error(.('Directory Full$'));
+    if dcnt = 255 then call error(.('DIRECTORY FULL$'));
         do while (i := getrbuff) <> 0;
         /* copy i characters to buffer */
         /* 00 $ at end of line gives 1.3 & 1.4 compatibility */
@@ -277,7 +277,7 @@ makefile: procedure;
         call writebuff;
         end;
     call close(.dfcb);
-    if dcnt = 255 then call error(.('Cannot Close, Read/Only?$'));
+    if dcnt = 255 then call error(.('CANNOT CLOSE, READ/ONLY?$'));
     end makefile;
 
  /* enter here from the ccp with the fcb set */
