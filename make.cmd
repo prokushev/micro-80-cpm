@@ -107,6 +107,9 @@ p2bin obj\AS6MAI.p bin\AS6MAI.bin
 
 copy /b bin\AS0COM.bin + /b bin\AS1IO.bin + /b bin\AS2SCA.bin + /b bin\AS3SYM.bin + /b bin\AS4SEA.bin + /b bin\AS5OPE.bin + /b bin\AS6MAI.bin /b com\asm.com
 
+asw -qLU -i inc src\sysgen\sysgen.asm -olist log\sysgen.lst -o obj\sysgen.p
+p2bin obj\sysgen.p com\sysgen.com
+
 rem В формате МОНИТОРа
 bin2rk bin\loader.bin rk\loader.rk8 12544
 bin2rk com\ch.com rk\ch.rk8 256
@@ -120,5 +123,6 @@ bin2ch com\submit.com rk\submit.rk
 bin2ch com\ch.com rk\ch.rk
 bin2ch com\dump.com rk\dump.rk
 bin2ch com\asm.com rk\asm.rk
+bin2ch com\sysgen.com rk\sysgen.rk
 
 :asw -1l comheader.asm > comheader.lst
