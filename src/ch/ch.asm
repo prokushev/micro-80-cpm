@@ -2,8 +2,8 @@
 ; МИКРО-80/ЮТ-88 CP/M 2.2 CH.COM Программа обмена файлов с лентой
 ; ═══════════════════════════════════════════════════════════════════════
 ; + Обратный порт с ЮТ-88 CP/M 2.2 BIOS на МИКРО-80
-; todo Отвязан от МОНИТОРа (замена вызовов МОНИТОРа tape in/tape out на функции punch/reader BDOS) (не получится, т.к. BDOS портит регистр А - управление синхробайтом. Или передавать через E?)
 ; + Некоторая оптимизация по размеру
+; + Более подробный вывод, поддержка русского языка
 
 
 		CPU		8080
@@ -11,6 +11,7 @@
 
 		ORG		0100h
 
+VERS		EQU		13	; X.X
 BDOS		EQU		0005H
 
 FCB1		EQU		005CH
@@ -32,8 +33,8 @@ F_DMAOFF	EQU		1AH
 
 		JP      START
 
-		INCLUDE	"en.inc"
-;		INCLUDE	"ru.inc"
+;		INCLUDE	"en.inc"
+		INCLUDE	"ru.inc"
 		INCLUDE	"syscalls.inc"
 
 STACK		EQU 500H
@@ -83,7 +84,7 @@ L021C:  LD      HL,(FILEEND)
         LD      E,L01AC & 0FFH
         JP	WRITESTRIDEXIT
 
-L024E:  LD      E,L0136 & 0FFH
+L024E:  LD      E,READYSAVE & 0FFH
 	CALL	WRITESTRIDREADCHAR
         LD      DE,FILESTART
         LD      HL,(FILEEND)
@@ -222,9 +223,24 @@ READERROR:
 	LD	E,MSG_READERROR & 0FFH
         JP	WRITESTRIDEXIT
 
-L0387:	LD	A, D
+L0387:	PUSH	DE
+	LD	E,MSG_CHECKSUM & 0FFH
+	CALL	WRITESTRID
+	POP	DE
+	LD	A, D
 	CALL	PHEX
 	LD	A, E
+	CALL	PHEX
+	CALL	CRLF
+
+	PUSH	DE
+	LD	DE, MSG_FILELEN
+	CALL	WRITESTR
+	POP	DE
+        LD      HL,(FILELEN)
+	LD	A, H
+	CALL	PHEX
+	LD	A, L
 	CALL	PHEX
 	CALL	CRLF
 

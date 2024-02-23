@@ -296,12 +296,14 @@ ENDC	EQU		$
 	;    disc) or 16-bit (stored low byte first). 
 
 	ORG	3400H+1800H	;было 4D00H	
-	DB	0,"CH      COM", 0, 0, 0, 06H		; 6=size/128
+	DB	0,"CH      COM", 0, 0, 0, (CHEND-CHSTART)/128		; 6=size/128
 	DB	1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		; 1=start block
 	DB	64*32-1*32 DUP (0E5H)
 
+CHSTART:
 	BINCLUDE CH.COM
 	DB	($ & 0ff80h)+80h-$ dup (0)	;выравниваем на размер записи
+CHEND:
 
 ENDDISKIMAGE	EQU	$-1
 
