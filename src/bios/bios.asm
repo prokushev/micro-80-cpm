@@ -196,6 +196,30 @@ NORMALF800:
 
 BOOT1:	XOR	A
 	LD	(0004h),A
+
+;The IOBYTE lives at address 3 (in the Zero Page) and should be changed using BDOS calls 7 and 8 (get/set IOBYTE). The value is bitmapped:
+;
+;     Bits      Bits 6,7    Bits 4,5    Bits 2,3    Bits 0,1
+;     Device    LIST        PUNCH       READER      CONSOLE
+;
+;     Value
+;       00      TTY:        TTY:        TTY:        TTY:
+;       01      CRT:        PTP:        PTR:        CRT:
+;       10      LPT:        UP1:        UR1:        BAT:
+;       11      UL1:        UP2:        UR2:        UC1:
+;
+;    BAT = batch mode. Use the current Reader for console input, and he current List (printer) device as the console output.
+;    CRT = Standard console (keyboard and terminal screen).
+;    LPT = Standard line printer.
+;    PTP = Standard Paper Tape Punch.
+;    PTR = Standard Paper Tape Reader.
+;    TTY = Teletype device, eg a serial port.
+;    UC1 = User defined (ie implementation dependent) console device.
+;    UL1 = User defined (ie implementation dependent) printer device.
+;    UPn = User defined (ie implementation dependent) output device.
+;    URn = User defined (ie implementation dependent) input device. 
+;
+	LD	A, 10010101b
 	LD	(0003h),A
 
 GOCPM:	DI				; На некоторых машинах имеется но где тогда включать?
@@ -455,8 +479,12 @@ OLDSP:	DS		2
 ;       ofs     число пропускаемых дорожек (word)
 ;       [0]     is an optional 0 which forces 16K/directory entry
 
+; Для Микро-80 размер диска не 256, а 512. В итоге при размере блока 1024 используется бвухбайтные
+; указатели блоков, что недопустимо. Поэтому надо увеличивать размер блока в два раза.
+
 	disks		1
-	diskdef		0, 1, 8, 1, 1024, (64-7)+64*7, 64, 32, 7
+;	diskdef		0, 1, 8, 1, 1024, (64-6)+64*3, 64, 32, 6 ; Нормально для ЮТ-88, но нет для Микро-80
+	diskdef		0, 1, 8, 1, 2048, (32-3)+32*7, 64, 32, 6
 	endef
 
 HELLO:	DB		01fh, "*MikrO/80* CP/M 2.2", 0ah, 0

@@ -8,7 +8,7 @@
 ; + CH.COM добавлен в образ квазидиска
 ; todo CP/M размещается в соответствии с верхней границей памяти
 ; todo Восстановление диска с ленты / Автоопределение объема квазидиска
-; todo Исключить BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
+; + Исключен BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
 
 
 
@@ -62,7 +62,7 @@ BaseAddress:
 	LD	HL, HELLO-$
 	CALL	PrintString
 
-	; Перемещение CCP/BDOS/BIOS по итоговым адресам
+	; Перемещение CCP/BDOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
 	RST	0
 	LD	HL, DISKIMAGE-$
@@ -102,6 +102,27 @@ L3135:	LD	A,(HL)
 	CP	C
 	RST	0
 	JP	NZ,L3135-$
+
+	; Перемещение BIOS по итоговым адресам
+	; (адреса перебираются снизу вверх)
+	RST	0
+	LD	HL, BIOSIMAGE-$
+	LD	DE, BIOS
+	RST	0
+	LD	BC, BIOSIMAGEEND-$
+COPYLOOP2:
+	LD	A,(HL)
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	LD	A,H
+	CP	B
+	RST	0
+	JP	NZ,COPYLOOP2-$
+	LD	A,L
+	CP	C
+	RST	0
+	JP	NZ,COPYLOOP2-$
 
 	;
 MenuLoop:
@@ -226,10 +247,8 @@ DISKIMAGE:
 	BINCLUDE	CCP.BIN		; size=800H
 	ORG		3400H+800H
 	BINCLUDE	BDOS.BIN		; size=E00H
-	ORG		3400H+1600H
-	; @TODO: Исключить BIOS?
-	BINCLUDE	BIOS.BIN		; size=300H
-	DB	3400H+1C00H-$ DUP (0FFH)	; Резервирем 7 дорожек
+;	ORG		3400H+1600H
+	DB	3400H+1800H-$ DUP (0FFH)	; Резервирем 6 дорожек
 ENDC	EQU		$
 
 	; Продолжение образа квазидиска - директория и данные
@@ -276,9 +295,9 @@ ENDC	EQU		$
 	;     AL numbers can either be 8-bit (if there are fewer than 256 blocks on the
 	;    disc) or 16-bit (stored low byte first). 
 
-	ORG	3400H+1C00H	;было 4D00H	
+	ORG	3400H+1800H	;было 4D00H	
 	DB	0,"CH      COM", 0, 0, 0, 06H		; 6=size/128
-	DB	2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		; 2=start block
+	DB	1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		; 1=start block
 	DB	64*32-1*32 DUP (0E5H)
 
 	BINCLUDE CH.COM
@@ -286,3 +305,6 @@ ENDC	EQU		$
 
 ENDDISKIMAGE	EQU	$-1
 
+BIOSIMAGE:
+	BINCLUDE	BIOS.BIN		; size=300H
+BIOSIMAGEEND:

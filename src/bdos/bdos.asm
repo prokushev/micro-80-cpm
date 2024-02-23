@@ -2969,5 +2969,6 @@ dptr:	ds	byte	;directory pointer 0,1,2,3
 dcnt:	ds	word	;directory counter 0,1,...,dirmax
 drec:	ds	word	;directory record 0,1,...,dirmax/4
 
-bios	equ	($ & 0ff00h)+100h	;next module
+	db	($ & 0ff00h)+100h-$ dup(0)	;next module
+bios:
 	end

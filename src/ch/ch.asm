@@ -222,7 +222,13 @@ READERROR:
 	LD	E,MSG_READERROR & 0FFH
         JP	WRITESTRIDEXIT
 
-L0387:  LD      C,F_MAKE
+L0387:	LD	A, D
+	CALL	PHEX
+	LD	A, E
+	CALL	PHEX
+	CALL	CRLF
+
+	LD      C,F_MAKE
         CALL    F_BDOS
         CP      0FFh
         JP      NZ,L039F
@@ -275,6 +281,43 @@ CRLF:	LD      E,0DH
 	CALL	WRITECHAR
         LD      E,0AH
 	JP	WRITECHAR
+
+PCHAR:   ;PRINT A CHARACTER
+         PUSH HL
+	 PUSH DE
+	 PUSH BC; SAVED
+         LD  E,A
+         CALL WRITECHAR
+         POP BC
+	 POP DE
+	 POP HL; RESTORED
+         RET
+
+;
+;
+PNIB:    ;PRINT NIBBLE IN REG A
+         AND  A, 0FH      ;LOW 4 BITS
+         CP  10
+         JP	NC, P10
+;   LESS THAN OR EQUAL TO 9
+         ADD  A,'0'
+         JP  PRN
+;
+;   GREATER OR EQUAL TO 10
+P10:     ADD  A, 'A' - 10
+PRN:     CALL PCHAR
+         RET
+;
+PHEX:    ;PRINT HEX CHAR IN REG A
+         PUSH AF
+         RRCA
+         RRCA
+         RRCA
+         RRCA
+         CALL PNIB     ;PRINT NIBBLE
+         POP  AF
+    CALL PNIB
+         RET
 
         ; --- START PROC L0302 ---
 L0302:  LD      A,08h
