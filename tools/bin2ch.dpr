@@ -6,7 +6,7 @@ uses
   SysUtils;
 var
 f,f1:file of byte;
-  size:word;
+  i,ii, size:word;
   tb,u:byte;
   cs:word=0;
   res:integer;
@@ -35,6 +35,20 @@ begin
    cs:=cs+tb;
   end;
   closefile(f);
+  i:=(size and $ff80);
+  if i<>size then
+  begin
+    i:=(size and $ff80)+$80;
+  end;
+  writeln('size: ', size, ' newsize: ', i);
+
+  ii:=i;
+  while ii>size do
+  begin
+   cs:=cs+$1a;
+   dec(ii);
+  end;
+
   assignfile(f,paramstr(2)(*ChangeFileExt(paramstr(1),'.rk')*));
   {$I-}
   rewrite(f);
@@ -47,8 +61,8 @@ begin
   end;
   u:=cs mod 256; write(f,u);
   u:=cs div 256; write(f,u);
-  u:=size mod 256; write(f,u);
-  u:=size div 256; write(f,u);
+  u:=i mod 256; write(f,u);
+  u:=i div 256; write(f,u);
 
   assignfile(f1,paramstr(1));
   reset(f1);
@@ -56,6 +70,11 @@ begin
   begin
    read(f1,tb);
    write(f,tb);
+  end;
+  while i>size do
+  begin
+    write(f,$1a);
+    inc(size);
   end;
   closefile(f1);
   closefile(f);
