@@ -110,6 +110,15 @@ copy /b bin\AS0COM.bin + /b bin\AS1IO.bin + /b bin\AS2SCA.bin + /b bin\AS3SYM.bi
 asw -qLU -i inc src\sysgen\sysgen.asm -olist log\sysgen.lst -o obj\sysgen.p
 p2bin obj\sysgen.p com\sysgen.com
 
+asw -qLU -i inc src\ddt\DDT0MOV.asm -olist log\DDT0MOV.lst -o obj\DDT0MOV.p
+p2bin obj\DDT0MOV.p bin\DDT0MOV.bin
+
+asw -qLU -i inc src\ddt\DDT1ASM.asm -olist log\DDT1ASM.lst -o obj\DDT1ASM.p
+p2bin obj\DDT1ASM.p bin\DDT1ASM.bin
+
+asw -qLU -i inc src\ddt\DDT2MON.asm -olist log\DDT2MON.lst -o obj\DDT2MON.p
+p2bin obj\DDT2MON.p bin\DDT2MON.bin
+
 rem В формате МОНИТОРа
 bin2rk bin\loader.bin rk\loader.rk8 12544
 bin2rk com\ch.com rk\ch.rk8 256
