@@ -50,8 +50,8 @@ on	equ	0ffffh
 off	equ	00000h
 test	equ	off
 
-	ifdef	BDOS
-	org	BDOS
+	ifdef	BDOS_ADDR
+	org	BDOS_ADDR
 	else
 	if	test
 	org	0dc00h
@@ -68,7 +68,7 @@ reboot	equ	0000h		;reboot system
 ioloc	equ	0003h		;i/o byte location
 bdosa	equ	0006h		;address field of jmp BDOS
 
-;	bios access constants
+;	bios access _addr constants
 bootf	set	bios+3*0	;cold boot function
 wbootf	set	bios+3*1	;warm boot function
 constf	set	bios+3*2	;console status function

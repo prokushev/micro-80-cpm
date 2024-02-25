@@ -21,19 +21,19 @@
 	INCLUDE		CFG.INC
 	INCLUDE		syscalls.inc
 
-	ORG		BIOS
+	ORG		BIOS_ADDR
 
 	INCLUDE		DSKDEF.MAC
 
 	JP	BOOT			;-3: Cold start routine
 	JP	WBOOT			; 0: Warm boot - reload command processor
-	JP	GetKeyboardStatus	; 3: Console status
+	JP	TERM_ADDR+6;GetKeyboardStatus	; 3: Console status
 	if	M80FIX=2
 	JP	CONIN
 	else
 	JP	InputSymbol		; 6: Console input
 	endif
-	JP	TERM			; 9: Console output
+	JP	TERM_ADDR		; VT52_CO 9: Console output
 	JP	ListCharFromC		;12: Printer output
 	JP	TapeWriteByte		;15: Paper tape punch output
 	JP	TapeReadByte		;18: Paper tape reader input
@@ -102,11 +102,12 @@ CONST:
 	LD	A, 0FFH		; Ставим статус, что нажато
 	RET
 	endif
+
 	if	M80FIX=2
-CONIN:	CALL	InputSymbol
+CONIN:	CALL	TERM_ADDR+3;InputSymbol
 	PUSH	AF
 Unpress:
-	CALL	GetKeyboardStatus	; Ждем отпускания
+	CALL	TERM_ADDR+6;GetKeyboardStatus	; Ждем отпускания
 	INC	A		
 	JP	Z, Unpress
 	POP	AF
@@ -123,10 +124,10 @@ WBOOT:  LD		SP,0080h
 	LD		C,00h
 	CALL		SELDSK
 	CALL		HOME
-	LD		B,(BIOS-CCP)/128; 2Ch количество блоков (CPP+BDOS)
+	LD		B,(BIOS_ADDR-CCP_ADDR)/128; 2Ch количество блоков (CPP+BDOS)
 	LD		C,00h		; дорожка
 	LD		D,01h		; сектор
-	LD		HL,CCP
+	LD		HL,CCP_ADDR
 LOAD1:	PUSH		BC
 	PUSH		DE
 	PUSH		HL
@@ -178,13 +179,13 @@ BOOT:	LD		SP,0100h
 	JP	NZ, NORMALF800	; Если нет, то работаем как обычно
 
 	LD	DE, CONST
-	LD	HL, BIOS+6+1	; Патчим CONST
+	LD	HL, BIOS_ADDR+6+1	; Патчим CONST
 	LD	(HL), E
 	INC	HL
 	LD	(HL), D
 
 	LD	DE, CONIN
-	LD	HL, BIOS+9+1	; Патчим CONIN
+	LD	HL, BIOS_ADDR+9+1	; Патчим CONIN
 	LD	(HL), E
 	INC	HL
 	LD	(HL), D
@@ -192,7 +193,7 @@ BOOT:	LD		SP,0100h
 NORMALF800:
 	endif
 	LD	HL,HELLO
-	CALL	PrintString
+	CALL	TERM_ADDR+9;PrintString
 
 BOOT1:	XOR	A
 	LD	(0004h),A
@@ -223,18 +224,18 @@ BOOT1:	XOR	A
 	LD	(0003h),A
 
 GOCPM:	DI				; На некоторых машинах имеется но где тогда включать?
-	LD	HL,BIOS+3
+	LD	HL,BIOS_ADDR+3
 	LD	(0001h),HL
 	LD	BC,0080h
 	CALL	SETDMA
 	LD	A,0C3h
 	LD	(0000h),A
 	LD	(0005h),A
-	LD	HL, BDOS+6
+	LD	HL, BDOS_ADDR+6
 	LD	(0006h),HL
 	LD	A,(0004h)
 	LD	C,A
-	JP	CCP
+	JP	CCP_ADDR
 
 ; SELDSK (п/п 9)
 ;
@@ -471,20 +472,20 @@ OLDSP:	DS		2
 ;       dn      номер диска 0,1,...,n-1
 ;       fsc     номер первого сектора на дорожке (обычно 0 или 1)
 ;       lsc     номер последнего сектора на дорожке
-;       skf     не обязательный параметр "коэффициент сдвига" для преобразования номера сектора
+;       skf     необязательный параметр "коэффициент сдвига" для преобразования номера сектора
 ;       bls     размер блока данных (1024,2048,...,16384)
-;       dks     is the disk size in bls increments (word)
+;       dks     размер диска в блоках (word)
 ;       dir     число записей каталога (word)
 ;       cks     число контрольных записей каталога (определение факта смены диска)
 ;       ofs     число пропускаемых дорожек (word)
-;       [0]     is an optional 0 which forces 16K/directory entry
+;       [0]     необязательный 0, который принудительно включает двухбайтные указатели блоков
 
 ; Для Микро-80 размер диска не 256, а 512. В итоге при размере блока 1024 используется бвухбайтные
 ; указатели блоков, что недопустимо. Поэтому надо увеличивать размер блока в два раза.
 
-	disks		1
+	disks		DISKSN
 ;	diskdef		0, 1, 8, 1, 1024, (64-6)+64*3, 64, 32, 6 ; Нормально для ЮТ-88, но нет для Микро-80
-	diskdef		0, 1, 8, 1, 2048, (32-3)+32*7, 64, 32, 6
+	diskdef		0, DISK_0_FSC, DISK_0_LSC, DISK_0_SKF, 2048, (32-3)+32*7, 64, 32, DISK_0_OFS
 	endef
 
 HELLO:	DB		01fh, "*MikrO/80* CP/M 2.2", 0ah, 0

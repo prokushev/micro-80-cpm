@@ -36,8 +36,8 @@ _true	equ	~_false
 testing	equ	_false	;true if debugging
 
 
-	ifdef	CCP
-	org	CCP
+	ifdef	CCP_ADDR
+	org	CCP_ADDR
 bdosl	equ	$+800h		;bdos location
 	else
 	if	testing
