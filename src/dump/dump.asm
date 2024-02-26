@@ -153,7 +153,7 @@ PHEX:    ;PRINT HEX CHAR IN REG A
          RRC
          CALL PNIB     ;PRINT NIBBLE
          POP  PSW
-    CALL PNIB
+	CALL PNIB
          RET
 ;
 ERR:     ;PRINT ERROR MESSAGE

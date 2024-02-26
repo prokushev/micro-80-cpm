@@ -7,8 +7,10 @@
 ; + Загрузчик позволяет не затирать существующие данные на квазидиске
 ; + CH.COM добавлен в образ квазидиска
 ; todo CP/M размещается в соответствии с верхней границей памяти
-; todo Восстановление диска с ленты / Автоопределение объема квазидиска
-; todo Исключить BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
+; todo Автоопределение объема квазидиска
+; + Исключен BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
+; todo Автоопределение терминала VT-52 и автозагрузка эмулятора терминала, если не найден терминал.
+; todo Загрузка CP/M из адресов, не кратным 256 (уменьшение размера загрузчика)
 
 
 
@@ -18,7 +20,8 @@
 	INCLUDE		"CFG.INC"
 	INCLUDE		"syscalls.inc"
 
-	ORG		3100h		; По факту грузить можем в любые адреса
+BASE	EQU             3100h
+	ORG		BASE		; По факту грузить можем в любые адреса
 
 Start:
 
@@ -62,11 +65,11 @@ BaseAddress:
 	LD	HL, HELLO-$
 	CALL	PrintString
 
-	; Перемещение CCP/BDOS/BIOS по итоговым адресам
+	; Перемещение CCP/BDOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
 	RST	0
 	LD	HL, DISKIMAGE-$
-	LD	DE, CCP
+	LD	DE, CCP_ADDR
 	RST	0
 	LD	BC, ENDC-$
 COPYLOOP:
@@ -87,7 +90,7 @@ COPYLOOP:
 	
 	RST	0
 	LD	HL,TERMIMAGE-$
-	LD	DE,TERM
+	LD	DE,TERM_ADDR
 	RST	0
 	LD	BC,TERMIMAGEEND-$
 L3135:	LD	A,(HL)
@@ -103,6 +106,27 @@ L3135:	LD	A,(HL)
 	RST	0
 	JP	NZ,L3135-$
 
+	; Перемещение BIOS по итоговым адресам
+	; (адреса перебираются снизу вверх)
+	RST	0
+	LD	HL, BIOSIMAGE-$
+	LD	DE, BIOS_ADDR
+	RST	0
+	LD	BC, BIOSIMAGEEND-$
+COPYLOOP2:
+	LD	A,(HL)
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	LD	A,H
+	CP	B
+	RST	0
+	JP	NZ,COPYLOOP2-$
+	LD	A,L
+	CP	C
+	RST	0
+	JP	NZ,COPYLOOP2-$
+
 	;
 MenuLoop:
 	RST	0
@@ -111,15 +135,11 @@ MenuLoop:
 	CALL	InputSymbol
 
 	CP	'3'
-	JP	Z, BIOS
+	JP	Z, BIOS_ADDR
 
 	CP	'2'
 	RST	0
 	JP	Z, InitDisk-$
-
-;	CP	'1'
-;	RST	0
-;	JP	Z, LoadDisk-$
 
 	CP	'1'
 	RST	0
@@ -168,14 +188,7 @@ Patch2:
 	OUT	(40h),A			; Отключаем RAMDISK
 ;	Дальше можно CALL, RST	
 
-	JP	BIOS			; Холодный старт BIOS
-
-; ───────────────────────────────────────────────────────────────────────
-; Загрузчик образа диска с ленты
-; ───────────────────────────────────────────────────────────────────────
-
-LoadDisk:
-	JP	BIOS		; Холодный старт
+	JP	BIOS_ADDR		; Холодный старт BIOS
 
 ; ───────────────────────────────────────────────────────────────────────
 ; Подпрограмма модификации относительного адреса
@@ -208,9 +221,8 @@ RST0:	EX	(SP),HL		; Save H,L and get next PC
 RST0_0	DW	0
 RST0_2:	DB	0
 
-HELLO:	DB	1FH, "zagruz~ik CP/M-80 2.2", 0dh, 0ah, 0
-MENU:	;DB	"1. zagruzitx disk s mg", 0dh, 0ah
-	DB	"1. wosstanowitx sistemu na diske", 0dh, 0ah
+HELLO:	DB	1FH, "zagruz~ik CP/M-80 ", VERS/10+'0', '.', VERS#10+'0', 0dh, 0ah, 0
+MENU:	DB	"1. wosstanowitx sistemu na diske", 0dh, 0ah
 	DB	"2. sozdatx nowyj pustoj disk", 0dh, 0ah
 	DB	"3. ispolxzowatx teku}ij disk", 0dh,0ah
 	DB	"=>"
@@ -220,19 +232,20 @@ TERMIMAGE:
 	BINCLUDE	TERM.BIN
 TERMIMAGEEND:
 
-	; Образ квазидиска - системная часть
-	ORG		3400H
+	; Образ квазидиска - системная часть (зарезервированные дорожки)
+	; Количество зарезервированных дорожек - размер системы/(размер сектора*количество секторов на дорожку)
+	; Округляется в большую сторону кратно размеру дорожки.
+
+	ORG		BASE+300H
 DISKIMAGE:
 	BINCLUDE	CCP.BIN		; size=800H
-	ORG		3400H+800H
+	ORG		BASE+300H+800H
 	BINCLUDE	BDOS.BIN		; size=E00H
-	ORG		3400H+1600H
-	; @TODO: Исключить BIOS?
-	BINCLUDE	BIOS.BIN		; size=300H
-	DB	3400H+1C00H-$ DUP (0FFH)	; Резервирем 7 дорожек
+	DB	BASE+300H+1800H-$ DUP (0FFH)	; Резервирем 6 дорожек
 ENDC	EQU		$
 
-	; Продолжение образа квазидиска - директория и данные
+	; Продолжение образа квазидиска - директория и данные.
+	; Начало каталога на первой дорожке, после зарезервированных.
 
 	;CP/M 2.2 directory
 	;
@@ -276,13 +289,18 @@ ENDC	EQU		$
 	;     AL numbers can either be 8-bit (if there are fewer than 256 blocks on the
 	;    disc) or 16-bit (stored low byte first). 
 
-	ORG	3400H+1C00H	;было 4D00H	
-	DB	0,"CH      COM", 0, 0, 0, 06H		; 6=size/128
-	DB	2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		; 2=start block
+	ORG	BASE+300H+1800H	;было 4D00H	
+	DB	0,"CH      COM", 0, 0, 0, (CHEND-CHSTART)/128		; 6=size/128
+	DB	1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		; 1=start block
 	DB	64*32-1*32 DUP (0E5H)
 
+CHSTART:
 	BINCLUDE CH.COM
 	DB	($ & 0ff80h)+80h-$ dup (0)	;выравниваем на размер записи
+CHEND:
 
 ENDDISKIMAGE	EQU	$-1
 
+BIOSIMAGE:
+	BINCLUDE	BIOS.BIN		; size=300H
+BIOSIMAGEEND:

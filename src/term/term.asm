@@ -30,7 +30,7 @@
 ; +Yrc		Set cursor position		Move cursor to position c,r, encoded as single characters.
 ; 									The VT50H also added the "SO" command that worked identically,
 ; 									providing backward compatibility with the VT05.
-; Z			ident					Identify what the terminal is, see notes below.
+; +Z			ident					Identify what the terminal is, see notes below.
 ; =			Alternate keypad		Changes the character codes returned by the keypad.
 ; >			Exit alternate keypad	Changes the character codes returned by the keypad. 
 ;
@@ -43,11 +43,63 @@
 
 	INCLUDE	CFG.INC
 
-	ORG	TERM
+	ORG	TERM_ADDR
+
+	JP	VT52_CO		; 0 Печать символа на экрат
+	JP	VT52_CI		; 3 Ввод символа с клавиатуры
+	JP	VT52_CST	; 6 Состояние клавиатуры
+	JP	VT52_MSG	; 9 Печать ASCIIZ строки
+
+VT52_CST:
+	LD	A, (IDENT)
+	OR	A
+	LD	A, 0
+	RET	NZ
+	JP	0F812H
+
+VT52_CI:
+	PUSH	HL
+	LD	HL, IDENT
+	LD	A, 1BH
+	CP	(HL)
+	JP	Z, VT52_CI1
+	LD	A, '/'
+	CP	(HL)
+	JP	Z, VT52_CI2
+	LD	A, 'K'
+	CP	(HL)
+	JP	Z, VT52_CI3
+	POP	HL
+	JP	0F803H
+
+VT52_CI1:
+	LD	(HL), '/'
+	POP	HL
+	RET
+VT52_CI2:
+	LD	(HL), 'K'
+	POP	HL
+	RET
+VT52_CI3:
+	LD	(HL), 0
+	POP	HL
+	RET
+
+VT52_MSG:
+	LD      A,(HL)
+        AND     A
+        RET     Z
+	PUSH	BC
+	LD	C, A
+        CALL    TERM_ADDR
+	POP	BC
+        INC     HL
+        JP      VT52_MSG
 
 ; Данная переменная одинакова для МОНИТОР и M/80K
 EK_ADR	EQU	0F75AH		;  Текущий адрес экрана в позиции курсора
 
+VT52_CO:
 	PUSH	HL
 	PUSH	BC
 	PUSH	DE
@@ -55,13 +107,14 @@ EK_ADR	EQU	0F75AH		;  Текущий адрес экрана в позиции �
 	LD	A,(EscSequenceState)
 	OR	A				; CP 00h
 	JP	NZ, ProcessEscSequence
+
 	LD	HL, PrintCAndExit	; Кладем в стек адрес возврата из эмулятора терминала
 	PUSH	HL
 
 	LD	A,C		
 	CP	' '             ; ' '
 	RET	NC		;JP NC,PrintCAndExit
-	CP	08h
+	CP	08h                             
 	RET	Z		;JP Z,PrintCAndExit
 	CP	0Ah
 	RET	Z		;JP Z,PrintCAndExit
@@ -84,22 +137,15 @@ ProcessEscSequence:
 	LD	A,(EscSequenceState)
 	CP	01h
 	JP	NZ,LF5B9
+	LD	DE, EndEscSeqPrintCAndExit
+	PUSH	DE
 	LD	A,C
 	CP	'A'             ; 'A' Cursor up
-	JP	NZ,LF543
+;	JP	NZ,LF543
 	LD	C,19h
+	RET	Z
 
-EndEscSeqPrintCAndExit:
-	XOR	A
-	LD	(EscSequenceState),A
-
-PrintCAndExit:
-	CALL	0F809H
-	JP	ExitTerm
-
-LF543:	LD	HL, EndEscSeqPrintCAndExit
-	PUSH	HL
-	CP	'B'             ; 'B' Cursor down
+LF543:	CP	'B'             ; 'B' Cursor down
 ;		JP			NZ,LF54D
 	LD	C,1Ah
 ;		JP			EndEscSeqPrintCAndExit
@@ -142,7 +188,7 @@ LF581:	LD	(HL),B
 	JP	ExitEscSequence
 
 LF58A:	CP	'K'             ; 'K' Clear to end of line
-	JP	NZ,LF5A3
+	JP	NZ,ESC_Y
 	LD	HL,(EK_ADR)
 	LD	A,L
 	AND	0C0h
@@ -154,17 +200,35 @@ LF59A:	LD	(HL),B
 	JP	NZ,LF59A
 	JP	ExitEscSequence
 
-LF5A3:	CP	'Y'             ; 'Y' Move cursor to position
-	JP	NZ,ExitEscSequence
+ESC_Y:	CP	'Y'             ; 'Y' Move cursor to position
+	JP	NZ,ESC_Z
 
 	; --- Гашение текушего курсора
 	LD	HL,(EK_ADR)
 	LD	DE,0F801h		; -7FFH
 	ADD	HL,DE
 	LD	(HL),00h
-	; ---
+	; -----
 	LD	A,02h
 	LD	(EscSequenceState),A
+	JP	ExitTerm
+
+ESC_Z:	CP	'Z'
+	JP	NZ, ESC_SL
+	LD	A, 1BH
+	LD	(IDENT), A
+	JP	ExitEscSequence
+
+ESC_SL:
+	CP	'/'
+	JP	Z, ExitEscSequence
+
+EndEscSeqPrintCAndExit:
+	XOR	A
+	LD	(EscSequenceState),A
+
+PrintCAndExit:
+	CALL	0F809H
 	JP	ExitTerm
 
 LF5B9:	LD	A,C
@@ -217,6 +281,7 @@ ExitEscSequence:
 	LD	(EscSequenceState),A
 	JP	ExitTerm
 
+IDENT:	DB	00h
 EscSequenceState:
 	DB	00h
 LF616:	DB	00h

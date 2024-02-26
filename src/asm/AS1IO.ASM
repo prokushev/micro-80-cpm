@@ -723,5 +723,6 @@ WHEX1:	XRA	A
 ;
 ;
 ;
-ENDMOD:	DB	($ & 0FFE0H)+20H - $ DUP (0FFH)
+	DB	($ & 0FFE0H)+20H - $ DUP (0FFH)
+ENDMOD:
 	END
