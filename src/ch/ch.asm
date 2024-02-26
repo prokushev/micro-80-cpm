@@ -222,6 +222,7 @@ READERROR:
 	LD	E,MSG_READERROR & 0FFH
         JP	WRITESTRIDEXIT
 
+; Сохраняем файл на диск
 L0387:  LD      C,F_MAKE
         CALL    F_BDOS
         CP      0FFh
