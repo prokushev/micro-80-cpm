@@ -65,6 +65,13 @@ BaseAddress:
 	LD	HL, HELLO-$
 	CALL	PrintString
 
+	; Провряем наличие VT-52
+	RST	0
+	CALL	VT52DETECT-$
+	; Если VT-52 не найден, то устанавливаем эмулятор
+	RST	0
+	CALL	NZ, VT52INSTALL-$
+	
 	; Перемещение CCP/BDOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
 	RST	0
@@ -85,26 +92,6 @@ COPYLOOP:
 	CP	C
 	RST	0
 	JP	NZ,COPYLOOP-$
-
-	; Перемещение эмулятора терминала по итоговым адресам
-	
-	RST	0
-	LD	HL,TERMIMAGE-$
-	LD	DE,TERM_ADDR
-	RST	0
-	LD	BC,TERMIMAGEEND-$
-L3135:	LD	A,(HL)
-	LD	(DE),A
-	INC	HL
-	INC	DE
-	LD	A,H
-	CP	B
-	RST	0
-	JP	NZ,L3135-$
-	LD	A,L
-	CP	C
-	RST	0
-	JP	NZ,L3135-$
 
 	; Перемещение BIOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
@@ -196,6 +183,7 @@ Patch2:
 RST0:	EX	(SP),HL		; Save H,L and get next PC
 	PUSH	DE		; Save D,E.
 	PUSH	AF		; Save condition codes.
+
 	DEC	HL		; Change RST 0 to NOP.
 	LD	(HL),00H
 	INC	HL
@@ -212,10 +200,75 @@ RST0:	EX	(SP),HL		; Save H,L and get next PC
 	LD	(HL),D		; Store absolute addr.
 	DEC	HL
 	LD	(HL),E
+	DEC	HL		; Set H,L to start of instr
+
 	POP	AF		; Restore condition codes.
 	POP	DE		; Restore D,E.
-	DEC	HL		; Set H,L to start of instr
 	EX	(SP),HL		; Restore H,L
+	RET
+
+;---------------------------------------------------
+; Определение наличия терминала VT-52
+; ВХОД
+;	нет
+; ВЫХОД
+;	A=0 - есть терминала
+;	A<>0 - нет терминала
+;	не установлен Z - нет терминала
+;---------------------------------------------------
+VT52DETECT:
+	RST	0
+	LD	HL, VT52-$
+	CALL	PrintString
+	CALL	GetKeyboardStatus	; По идее, надо ждать с тайм-аутом, т.к. терминал может быть асинхронным
+	OR	A
+	RET	NZ
+	CALL	InputSymbol
+	CP	1BH
+	RET	NZ
+	CALL	GetKeyboardStatus	; По идее, надо ждать с тайм-аутом, т.к. терминал может быть асинхронным
+	OR	A
+	RET	NZ
+	CALL	InputSymbol
+	CP	'/'
+	RET	NZ
+	CALL	GetKeyboardStatus	; По идее, надо ждать с тайм-аутом, т.к. терминал может быть асинхронным
+	OR	A
+	RET	NZ
+	CALL	InputSymbol
+	CP	'K'		; VT-52
+	RST	0
+	JP	Z, VDFOUND
+	CP	'L'		; VT-52 + Copier
+	RST	0
+	JP	Z, VDFOUND
+	CP	'M'		; VT-52 + Printer
+	RST	0
+	JP	Z, VDFOUND
+	CP	'Z'		; VT-100 or similar in VT-52 Emulation mode
+	RET	NZ
+VDFOUND:XOR	A		
+	RET
+
+	; Перемещение эмулятора терминала по итоговым адресам
+VT52INSTALL:	
+	RST	0
+	LD	HL,TERMIMAGE-$
+	LD	DE,TERM_ADDR
+	RST	0
+	LD	BC,TERMIMAGEEND-$
+L3135:	LD	A,(HL)
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	LD	A,H
+	CP	B
+	RST	0
+	JP	NZ,L3135-$
+	LD	A,L
+	CP	C
+	RST	0
+	JP	NZ,L3135-$
 	RET
 
 RST0_0	DW	0
@@ -227,6 +280,7 @@ MENU:	DB	"1. wosstanowitx sistemu na diske", 0dh, 0ah
 	DB	"3. ispolxzowatx teku}ij disk", 0dh,0ah
 	DB	"=>"
 	DB	0
+VT52:	DB	1BH, 'Z', 0
 
 TERMIMAGE:
 	BINCLUDE	TERM.BIN
