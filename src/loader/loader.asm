@@ -221,30 +221,30 @@ VT52DETECT:
 	LD	HL, VT52-$
 	CALL	PrintString
 	CALL	GetKeyboardStatus	; По идее, надо ждать с тайм-аутом, т.к. терминал может быть асинхронным
-	OR	A
+	INC	A
 	RET	NZ
 	CALL	InputSymbol
 	CP	1BH
 	RET	NZ
 	CALL	GetKeyboardStatus	; По идее, надо ждать с тайм-аутом, т.к. терминал может быть асинхронным
-	OR	A
+	INC	A
 	RET	NZ
 	CALL	InputSymbol
 	CP	'/'
 	RET	NZ
 	CALL	GetKeyboardStatus	; По идее, надо ждать с тайм-аутом, т.к. терминал может быть асинхронным
-	OR	A
+	INC	A
 	RET	NZ
 	CALL	InputSymbol
 	CP	'K'		; VT-52
 	RST	0
-	JP	Z, VDFOUND
+	JP	Z, VDFOUND-$
 	CP	'L'		; VT-52 + Copier
 	RST	0
-	JP	Z, VDFOUND
+	JP	Z, VDFOUND-$
 	CP	'M'		; VT-52 + Printer
 	RST	0
-	JP	Z, VDFOUND
+	JP	Z, VDFOUND-$
 	CP	'Z'		; VT-100 or similar in VT-52 Emulation mode
 	RET	NZ
 VDFOUND:XOR	A		
@@ -274,17 +274,14 @@ L3135:	LD	A,(HL)
 RST0_0	DW	0
 RST0_2:	DB	0
 
-HELLO:	DB	1FH, "zagruz~ik CP/M-80 ", VERS/10+'0', '.', VERS#10+'0', 0dh, 0ah, 0
-MENU:	DB	"1. wosstanowitx sistemu na diske", 0dh, 0ah
+HELLO:	DB	1FH, "zagruz~ik CP/M-80 ", VERS/10+'0', '.', VERS#10+'0', 0
+MENU:	DB	0dh,0ah,"1. wosstanowitx sistemu na diske", 0dh, 0ah
 	DB	"2. sozdatx nowyj pustoj disk", 0dh, 0ah
 	DB	"3. ispolxzowatx teku}ij disk", 0dh,0ah
 	DB	"=>"
 	DB	0
 VT52:	DB	1BH, 'Z', 0
 
-TERMIMAGE:
-	BINCLUDE	TERM.BIN
-TERMIMAGEEND:
 
 	; Образ квазидиска - системная часть (зарезервированные дорожки)
 	; Количество зарезервированных дорожек - размер системы/(размер сектора*количество секторов на дорожку)
@@ -358,6 +355,10 @@ ENDDISKIMAGE	EQU	$-1
 BIOSIMAGE:
 	BINCLUDE	BIOS.BIN		; size=300H
 BIOSIMAGEEND:
+
+TERMIMAGE:
+	BINCLUDE	TERM.BIN
+TERMIMAGEEND:
 
 	if	0
 ; ********************************************************
