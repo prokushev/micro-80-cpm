@@ -5,10 +5,11 @@
 ; + Оптимизация по размеру
 ; + Убран прямой переход (не через точку входа) в МОНИТОР
 ; todo Расширена поддержка VT-52 (из моего МОНИТОРА РК86)
-; todo Поддержка РК-86
+; todo Поддержка РК-86 (для этого нужен позиционно независимый код)
 ; todo Отслеживание позиции курсора. Теперь не зависит от рабочих ячеек МОНИТОРа.
 ; Для МИКРО-80 (Стандартный МОНИТОР и М/80К) и ЮТ-88 (МОНИТОР-F) 
 ; используется системная переменная EK_ADR = 0F75AH
+; todo Эмуляция графических символов (использование +-! и т.п.)
 ;
 ; Таблица поддерживаемых кодов (+ означает наличие поддержки)
 ;
@@ -114,11 +115,13 @@ VT52_CO:
 	LD	A,C		
 	CP	' '             ; ' '
 	RET	NC		;JP NC,PrintCAndExit
-	CP	08h                             
+	CP	08h
 	RET	Z		;JP Z,PrintCAndExit
 	CP	0Ah
 	RET	Z		;JP Z,PrintCAndExit
 	CP	0Dh
+	RET	Z		;JP Z,PrintCAndExit
+	CP	1Fh
 	RET	Z		;JP Z,PrintCAndExit
 	POP	HL
 	CP	1Bh
@@ -175,6 +178,7 @@ LF56B:	CP	'H'             ; 'H' Cursor home
 		;JP			Z, EndEscSeqPrintCAndExit
 	RET	Z
 	POP	HL
+	LD	C, A		; Восстанавливаем C
 
 LF575:	CP	'J'             ; 'J' Clear to end of screen
 	JP	NZ,LF58A
@@ -270,6 +274,7 @@ LF5EB:	LD	L,A
 	AND	07h
 	OR	0E8h
 	LD	H,A
+
 	; --- Новая позиция курсора
 	LD	(EK_ADR),HL
 	LD	DE,0F801h		; -07FFH

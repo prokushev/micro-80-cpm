@@ -10,6 +10,7 @@
 ; todo Автоопределение объема квазидиска
 ; + Исключен BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
 ; todo Автоопределение терминала VT-52 и автозагрузка эмулятора терминала, если не найден терминал.
+; todo Проверка наличия квазидиска (при его отсутствии запись на диск будет производиться в основное ОЗУ)
 ; todo Загрузка CP/M из адресов, не кратным 256 (уменьшение размера загрузчика)
 
 
@@ -61,17 +62,33 @@ BaseAddress:
 	RST	0
 	LD	(Patch2+1-$), HL
 
+	; Защита от нажатой клавиши при запуске (чтобы не сбоил детект терминала)
+Unpress:
+	CALL	GetKeyboardStatus	; Ждем отпускания
+	INC	A
+	RST	0
+	JP	Z, Unpress-$
+
 	RST	0
 	LD	HL, HELLO-$
 	CALL	PrintString
 
-	; Провряем наличие VT-52
+	; Проверяем наличие VT-52
 	RST	0
 	CALL	VT52DETECT-$
+
+	RST	0
+	LD	HL, VT52PRESENT-$
+
+	; Если VT-52 найден, то сообщаем об том
+	PUSH	AF
+	CALL	Z, PrintString
+	POP	AF
+
 	; Если VT-52 не найден, то устанавливаем эмулятор
 	RST	0
 	CALL	NZ, VT52INSTALL-$
-	
+
 	; Перемещение CCP/BDOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
 	RST	0
@@ -269,6 +286,9 @@ L3135:	LD	A,(HL)
 	CP	C
 	RST	0
 	JP	NZ,L3135-$
+	RST	0
+	LD	HL, VT52NOTPRESENT-$
+	CALL	PrintString
 	RET
 
 RST0_0	DW	0
@@ -281,6 +301,10 @@ MENU:	DB	0dh,0ah,"1. wosstanowitx sistemu na diske", 0dh, 0ah
 	DB	"=>"
 	DB	0
 VT52:	DB	1BH, 'Z', 0
+VT52PRESENT:
+	DB	0dh,0ah, "VT52 najden",0
+VT52NOTPRESENT:
+	DB	0dh,0ah, "ustanowlen |mulqtor VT52",0
 
 
 	; Образ квазидиска - системная часть (зарезервированные дорожки)
