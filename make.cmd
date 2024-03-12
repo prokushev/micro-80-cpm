@@ -144,7 +144,8 @@ asw -qLU -i inc src\ddt\DDT2MON.asm -olist log\DDT2MON.lst -o obj\DDT2MON.p
 p2bin obj\DDT2MON.p bin\DDT2MON.bin
 
 rem В формате МОНИТОРа
-bin2rk bin\loader.bin rk\loader.rk8 12544
+bin2rk bin\loader.bin rk\loader.rk8 0
+:bin2rk bin\loader.bin rk\loader.rk8 12544
 bin2rk com\ch.com rk\ch.rk8 256
 
 rem В формате CH.COM

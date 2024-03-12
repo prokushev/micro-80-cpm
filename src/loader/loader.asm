@@ -21,7 +21,7 @@
 	INCLUDE		"cfg.inc"
 	INCLUDE		"syscalls.inc"
 
-BASE	EQU             3100h
+BASE	EQU             0h
 	ORG		BASE		; По факту грузить можем в любые адреса
 
 Start:
@@ -111,17 +111,22 @@ Unpress:
 	EX	DE, HL
 	LD	SP, HL			; Восстановили стек
 
-	LD	A, D
-	CP	B
+
+	; Сравниваем DE с BC
+	; Данные совпали => нет диска
+	LD	A,B
+	CP	D
+	RST	0
+	JP	NZ, DISKOK-$
+	LD	A,C
+	CP	E
+	RST	0
+	JP	NZ, DISKOK-$
+
 	RST	0
 	JP	Z, NODISK-$
-	LD	A, E
-	CP	C
-	RST	0
-	JP	Z, NODISK-$
-					; Сравнили DE с BC
-					; Данные совпали => нет диска
-					
+
+DISKOK:
 	RST	0
 	LD	HL, DISKFOUND-$
 	CALL	PrintString
