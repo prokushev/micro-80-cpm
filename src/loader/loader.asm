@@ -130,6 +130,61 @@ DISKOK:
 	RST	0
 	LD	HL, DISKFOUND-$
 	CALL	PrintString
+
+	; Проверяем, есть ли п/п определения RAMTOP
+	RST	0
+	LD	HL, MAXMEM-$
+	CALL	PrintString
+
+	LD	A, (GetFreeMemAddr)
+	CP	0C3H
+	RST	0
+	JP	Z, APIPRESENT-$
+	
+	; У нас нет API для определения верхней границы памяти.
+	; Значит это:
+	; - Микро-80 с оригинальным МОНИТОРом
+	; - ЮТ-88 с МОНИТОРом U
+	; - Микроша с оригинальным МОНИТОРом
+	; - что-то еще из относительно старого
+	;
+	; Микрошу можно попробовать определить по символу на экране через адрес в служебной ячейке
+	; ЮТ-88 и Микро-80 можно попробовать определить тоже по символу на экране или просто сканирование
+	; остановится, т.к. считать данные с экрана в ЮТ-88 и Микро-80 можно не во всех вариантах.
+
+	; Начинаем сканировать память с RAMTOP и дальше
+	LD	HL, RAMSTART
+	INC	H
+	LD	L, 0
+
+NextPage:
+	INC	H
+	LD	C,(HL)
+	LD	(HL),0EFH
+	LD	A, (HL)
+	LD	(HL), C
+	CP	0EFH
+	RST	0
+	JP	Z, NextPage-$
+
+	DEC	H
+	LD	L, 0FFH
+	
+	; Теперь надо как-то определиться с картой памяти, т.к. здесь и видео-ОЗУ и системные ячейки и пр.
+	
+	RST	0
+	JP	PrintMem-$
+
+APIPRESENT:
+
+	CALL	GetFreeMemAddr
+PrintMem:
+	LD	A, H
+	RST	0
+	CALL	PrintHex-$
+	LD	A, L
+	RST	0
+	CALL	PrintHex-$
 	
 	; Перемещение CCP/BDOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
@@ -363,26 +418,25 @@ LL3135:	LD	A,(HL)
 	CALL	PrintString
 	RET
 
+PrintHex:
+	PUSH	AF
+	RRCA
+	RRCA
+	RRCA
+	RRCA
+	RST	0
+	CALL	PrintHexNibble-$
+	POP	AF
+PrintHexNibble:
+	AND	0FH
+	CP	10
+	SBC	A,2FH
+	DAA
+	LD	C, A
+	JP	PrintCharFromC
+
 RST0_0	DW	0
 RST0_2:	DB	0
-
-HELLO:	DB	1FH, "zagruz~ik CP/M-80 ", VERS/10+'0', '.', VERS#10+'0', 0
-MENU:	DB	0dh,0ah,"1. wosstanowitx sistemu na diske", 0dh, 0ah
-	DB	"2. sozdatx nowyj pustoj disk", 0dh, 0ah
-	DB	"3. ispolxzowatx teku}ij disk", 0dh,0ah
-	DB	"=>"
-	DB	0
-VT52:	DB	1BH, 'Z', 0
-VT52PRESENT:
-	DB	0dh,0ah, "VT52 najden",0
-MONPRESENT:
-	DB	0dh,0ah, "ustanowlen redirektor terminala",0
-VT52NOTPRESENT:
-	DB	0dh,0ah, "ustanowlen |mulqtor VT52",0
-NODISKMSG:
-	DB	0dh, 0ah, "RAM-disk ne najden", 0dh, 0ah, "navmite <wk> dlq wyhoda w monitor", 0
-DISKFOUND:
-	DB	0dh, 0ah, "najden RAM-disk", 0
 
 	; Образ квазидиска - системная часть (зарезервированные дорожки)
 	; Количество зарезервированных дорожек - размер системы/(размер сектора*количество секторов на дорожку)
@@ -586,3 +640,25 @@ BDOSBITMAP:
 	include "bdosbitmap.inc"
 CPPBITMAP:
 	include "cppbitmap.inc"
+
+HELLO:	DB	1FH, "zagruz~ik CP/M-80 ", VERS/10+'0', '.', VERS#10+'0', 0
+MENU:	DB	0dh,0ah,"1. wosstanowitx sistemu na diske", 0dh, 0ah
+	DB	"2. sozdatx nowyj pustoj disk", 0dh, 0ah
+	DB	"3. ispolxzowatx teku}ij disk", 0dh,0ah
+	DB	"=>"
+	DB	0
+VT52:	DB	1BH, 'Z', 0
+VT52PRESENT:
+	DB	0dh,0ah, "VT52 najden",0
+MONPRESENT:
+	DB	0dh,0ah, "ustanowlen redirektor terminala",0
+VT52NOTPRESENT:
+	DB	0dh,0ah, "ustanowlen |mulqtor VT52",0
+NODISKMSG:
+	DB	0dh, 0ah, "RAM-disk ne najden", 0dh, 0ah, "navmite <wk> dlq wyhoda w monitor", 0
+DISKFOUND:
+	DB	0dh, 0ah, "najden RAM-disk", 0
+MAXMEM:
+	DB	0dh, 0ah, "granica ozu: ",0
+
+RAMSTART:
