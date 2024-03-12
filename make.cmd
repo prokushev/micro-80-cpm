@@ -159,7 +159,7 @@ bin2ch com\dump.com rk\dump.rk
 bin2ch com\asm.com rk\asm.rk
 bin2ch com\sysgen.com rk\sysgen.rk
 bin2ch com\power.com rk\power.rk
-bin2ch com\power.com rk\pwretool.rk
+bin2ch com\pwretool.com rk\pwretool.rk
 bin2ch com\basic.com rk\basic.rk
 
 :asw -1l comheader.asm > comheader.lst
