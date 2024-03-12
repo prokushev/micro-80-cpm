@@ -13,27 +13,25 @@
 ; todo Поддержка автоповтора ввода на МИКРО-80 -> отказ от F803? Можно, для надежности, проверять
 ; наличие вектора F81B
 ; todo Поддержка перенаправления (IOByte)
-; todo Исключить BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
+; todo Фиксы косяков МОНИТОРов перенесены в эмулятор VT-52
+; + BIOS исключен с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
 
 	CPU			8080
 	Z80SYNTAX	EXCLUSIVE
 
-	INCLUDE		CFG.INC
+	INCLUDE		cfg.inc
 	INCLUDE		syscalls.inc
-
+	INCLUDE		vt52term.inc
+	INCLUDE		dskdef.mac
+	
 	ORG		BIOS_ADDR
 
-	INCLUDE		DSKDEF.MAC
 
 	JP	BOOT			;-3: Cold start routine
 	JP	WBOOT			; 0: Warm boot - reload command processor
-	JP	TERM_ADDR+6;GetKeyboardStatus	; 3: Console status
-	if	M80FIX=2
-	JP	CONIN
-	else
-	JP	InputSymbol		; 6: Console input
-	endif
-	JP	TERM_ADDR		; VT52_CO 9: Console output
+	JP	VT52_CST		; 3: Console status
+	JP	VT52_CI			; 6: Console input
+	JP	VT52_CO			; 9: Console output
 	JP	ListCharFromC		;12: Printer output
 	JP	TapeWriteByte		;15: Paper tape punch output
 	JP	TapeReadByte		;18: Paper tape reader input
@@ -104,14 +102,6 @@ CONST:
 	endif
 
 	if	M80FIX=2
-CONIN:	CALL	TERM_ADDR+3;InputSymbol
-	PUSH	AF
-Unpress:
-	CALL	TERM_ADDR+6;GetKeyboardStatus	; Ждем отпускания
-	INC	A		
-	JP	Z, Unpress
-	POP	AF
-	RET
 	endif
 
 	
@@ -193,7 +183,7 @@ BOOT:	LD		SP,0100h
 NORMALF800:
 	endif
 	LD	HL,HELLO
-	CALL	TERM_ADDR+9;PrintString
+	CALL	VT52_MSG
 
 BOOT1:	XOR	A
 	LD	(0004h),A

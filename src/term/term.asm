@@ -71,7 +71,17 @@ VT52_CI:
 	CP	(HL)
 	JP	Z, VT52_CI3
 	POP	HL
+
+	PUSH	AF
+Unpress:
+	CALL	VT52_CST	; Ждем отпускания
+	INC	A		
+	JP	Z, Unpress
+	POP	AF
+	
 	JP	0F803H
+
+;---------------------------------------------------------
 
 VT52_CI1:
 	LD	(HL), '/'
