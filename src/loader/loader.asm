@@ -1,5 +1,5 @@
 ; ═══════════════════════════════════════════════════════════════════════
-; ЮТ-88/МИКРО-80 CP/M 2.2 ЗАГРУЗЧИК
+; ЗАГРУЗЧИК ЮТ-88/МИКРО-80 CP/M 2.2 
 ; ═══════════════════════════════════════════════════════════════════════
 ; + Обратный порт ЮТ-88 CP/M 2.2 на МИКРО-80
 ; + Загрузка загрузчика в произвольные адреса
@@ -572,3 +572,12 @@ REPORT:	POP 	Н
 STMSG: 	DB 	"NEW START ADDRESS:" ,0
 CRLF: 	DB 	0DH,0AH,0
 	endif
+
+VT52TERMBITMAP:
+	include "vt52termbitmap.inc"
+BIOSBITMAP:
+	include "biosbitmap.inc"
+BDOSBITMAP:
+	include "bdosbitmap.inc"
+CPPBITMAP:
+	include "cppbitmap.inc"

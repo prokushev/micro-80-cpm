@@ -9,17 +9,38 @@ SET PLM80 %CD%
 asw -qLU -i inc src\vt52term\vt52term.asm -olist log\vt52term.lst -o obj\vt52term.p
 p2bin obj\vt52term.p bin\vt52term.bin
 
+asw -qLU -i inc -D TERM_ADDR=0F600H src\vt52term\vt52term.asm -olist log\vt52termf600.lst -o obj\vt52termf600.p
+p2bin obj\vt52termf600.p bin\vt52termf600.bin
+
+bitmap bin\vt52term.bin bin\vt52termf600.bin inc\vt52termbitmap.inc
+
 asw -qLU -i inc src\monterm\monterm.asm -olist log\monterm.lst -o obj\monterm.p
 p2bin obj\monterm.p bin\monterm.bin
 
 asw -qLU -i inc src\bios\bios.asm -olist log\bios.lst -o obj\bios.p
 p2bin obj\bios.p bin\bios.bin
 
+asw -qLU -i inc -D BIOS_ADDR=0DB00H src\bios\bios.asm -olist log\biosDB00.lst -o obj\biosDB00.p
+p2bin obj\biosDB00.p bin\biosDB00.bin
+
+bitmap bin\bios.bin bin\biosDB00.bin inc\biosbitmap.inc
+
 asw -qLU -i inc src\bdos\bdos.asm -olist log\bdos.lst -o obj\bdos.p
 p2bin obj\bdos.p bin\bdos.bin
 
+asw -qLU -i inc -D BDOS_ADDR=0CD00H -D BIOS_ADDR=0DB00H src\bdos\bdos.asm -olist log\bdosCD00.lst -o obj\bdosCD00.p
+p2bin obj\bdosCD00.p bin\bdosCD00.bin
+
+bitmap bin\bdos.bin bin\bdosCD00.bin inc\bdosbitmap.inc
+
 asw -qLU -i inc src\ccp\ccp.asm -olist log\ccp.lst -o obj\ccp.p
 p2bin obj\ccp.p bin\ccp.bin
+
+
+asw -qLU -i inc -D CPP_ADDR=0C500H -D BDOS_ADDR=0CD00H -D BIOS_ADDR=0DB00H src\ccp\ccp.asm -olist log\ccpC500.lst -o obj\ccpC500.p
+p2bin obj\ccpC500.p bin\ccpC500.bin
+
+bitmap bin\ccp.bin bin\ccpC500.bin inc\cppbitmap.inc
 
 asw -qLU -i inc src\ch\ch.asm -olist log\ch.lst -o obj\ch.p
 p2bin obj\ch.p com\ch.com

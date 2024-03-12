@@ -1,2 +1,6 @@
 /log
 /obj
+/inc/bdosbitmap.inc
+/inc/cppbitmap.inc
+/inc/biosbitmap.inc
+/inc/vt52termbitmap.inc
