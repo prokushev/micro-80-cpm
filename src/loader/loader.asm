@@ -10,7 +10,7 @@
 ; todo Автоопределение объема квазидиска
 ; + Исключен BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
 ; todo Автоопределение терминала VT-52 и автозагрузка эмулятора терминала, если не найден терминал.
-; todo Проверка наличия квазидиска (при его отсутствии запись на диск будет производиться в основное ОЗУ)
+; + Проверка наличия квазидиска
 ; todo Загрузка CP/M из адресов, не кратным 256 (уменьшение размера загрузчика)
 
 
@@ -232,9 +232,8 @@ NODISK:
 	RST	0
 	LD	HL, NODISKMSG-$
 	CALL	PrintString
-	RST	0
-HALTLOOP:
-	JP	HALTLOOP-$
+	CALL	InputSymbol
+	JP	WarmBoot
 
 ; ───────────────────────────────────────────────────────────────────────
 ; Подпрограмма модификации относительного адреса
@@ -348,7 +347,7 @@ VT52PRESENT:
 VT52NOTPRESENT:
 	DB	0dh,0ah, "ustanowlen |mulqtor VT52",0
 NODISKMSG:
-	DB	0dh, 0ah, "RAM-disk ne najden", 0
+	DB	0dh, 0ah, "RAM-disk ne najden", 0dh, 0ah, "navmite <wk> dlq wyhoda w monitor", 0
 DISKFOUND:
 	DB	0dh, 0ah, "najden RAM-disk", 0
 
