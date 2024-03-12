@@ -1,5 +1,5 @@
 ; ═══════════════════════════════════════════════════════════════════════
-; МИКРО-80 CP/M 2.2 ЗАГРУЗЧИК
+; ЮТ-88/МИКРО-80 CP/M 2.2 ЗАГРУЗЧИК
 ; ═══════════════════════════════════════════════════════════════════════
 ; + Обратный порт ЮТ-88 CP/M 2.2 на МИКРО-80
 ; + Загрузка загрузчика в произвольные адреса
@@ -9,7 +9,7 @@
 ; todo CP/M размещается в соответствии с верхней границей памяти
 ; todo Автоопределение объема квазидиска
 ; + Исключен BIOS с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
-; todo Автоопределение терминала VT-52 и автозагрузка эмулятора терминала, если не найден терминал.
+; + Автоопределение терминала VT-52 и автозагрузка эмулятора терминала, если не найден терминал.
 ; + Проверка наличия квазидиска
 ; todo Загрузка CP/M из адресов, не кратным 256 (уменьшение размера загрузчика)
 
@@ -18,7 +18,7 @@
 	CPU		8080
 	Z80SYNTAX	EXCLUSIVE
 	
-	INCLUDE		"CFG.INC"
+	INCLUDE		"cfg.inc"
 	INCLUDE		"syscalls.inc"
 
 BASE	EQU             3100h
@@ -86,9 +86,12 @@ Unpress:
 	POP	AF
 
 	; Если VT-52 не найден, то устанавливаем эмулятор
+	PUSH	AF
 	RST	0
 	CALL	NZ, VT52INSTALL-$
-
+	POP	AF
+	RST	0
+	CALL	Z, MONINSTALL-$
 	
 	; Ищем RAM-диск
 	LD	HL, 0
@@ -311,10 +314,10 @@ VDFOUND:XOR	A
 	; Перемещение эмулятора терминала по итоговым адресам
 VT52INSTALL:	
 	RST	0
-	LD	HL,TERMIMAGE-$
+	LD	HL,VT52TERMIMAGE-$
 	LD	DE,TERM_ADDR
 	RST	0
-	LD	BC,TERMIMAGEEND-$
+	LD	BC,VT52TERMIMAGEEND-$
 L3135:	LD	A,(HL)
 	LD	(DE),A
 	INC	HL
@@ -332,6 +335,29 @@ L3135:	LD	A,(HL)
 	CALL	PrintString
 	RET
 
+MONINSTALL:	
+	RST	0
+	LD	HL,MONTERMIMAGE-$
+	LD	DE,TERM_ADDR
+	RST	0
+	LD	BC,MONTERMIMAGEEND-$
+LL3135:	LD	A,(HL)
+	LD	(DE),A
+	INC	HL
+	INC	DE
+	LD	A,H
+	CP	B
+	RST	0
+	JP	NZ,LL3135-$
+	LD	A,L
+	CP	C
+	RST	0
+	JP	NZ,LL3135-$
+	RST	0
+	LD	HL, MONPRESENT-$
+	CALL	PrintString
+	RET
+
 RST0_0	DW	0
 RST0_2:	DB	0
 
@@ -344,6 +370,8 @@ MENU:	DB	0dh,0ah,"1. wosstanowitx sistemu na diske", 0dh, 0ah
 VT52:	DB	1BH, 'Z', 0
 VT52PRESENT:
 	DB	0dh,0ah, "VT52 najden",0
+MONPRESENT:
+	DB	0dh,0ah, "ustanowlen redirektor terminala",0
 VT52NOTPRESENT:
 	DB	0dh,0ah, "ustanowlen |mulqtor VT52",0
 NODISKMSG:
@@ -424,9 +452,13 @@ BIOSIMAGE:
 	BINCLUDE	BIOS.BIN		; size=300H
 BIOSIMAGEEND:
 
-TERMIMAGE:
-	BINCLUDE	TERM.BIN
-TERMIMAGEEND:
+MONTERMIMAGE:
+	BINCLUDE	MONTERM.BIN
+MONTERMIMAGEEND:
+
+VT52TERMIMAGE:
+	BINCLUDE	VT52TERM.BIN
+VT52TERMIMAGEEND:
 
 	if	0
 ; ********************************************************

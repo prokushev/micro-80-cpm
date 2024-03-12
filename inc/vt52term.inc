@@ -6,4 +6,4 @@
 VT52_CO		EQU	TERM_ADDR	; 0 Печать символа на экран
 VT52_CI		EQU	TERM_ADDR+3	; 3 Ввод символа с клавиатуры
 VT52_CST	EQU	TERM_ADDR+6	; 6 Состояние клавиатуры
-VT52_MSG	EQU TERM_ADDR+9	; 9 Печать ASCIIZ строки
+VT52_MSG	EQU	TERM_ADDR+9	; 9 Печать ASCIIZ строки

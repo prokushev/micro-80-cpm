@@ -6,8 +6,11 @@ md obj
 SET PATH=tools;%PATH%
 SET PLM80 %CD%
 
-asw -qLU -i inc src\term\term.asm -olist log\term.lst -o obj\term.p
-p2bin obj\term.p bin\term.bin
+asw -qLU -i inc src\vt52term\vt52term.asm -olist log\vt52term.lst -o obj\vt52term.p
+p2bin obj\vt52term.p bin\vt52term.bin
+
+asw -qLU -i inc src\monterm\monterm.asm -olist log\monterm.lst -o obj\monterm.p
+p2bin obj\monterm.p bin\monterm.bin
 
 asw -qLU -i inc src\bios\bios.asm -olist log\bios.lst -o obj\bios.p
 p2bin obj\bios.p bin\bios.bin
