@@ -136,8 +136,13 @@ DISKOK:
 	LD	HL, MAXMEM-$
 	CALL	PrintString
 
+	; В этой точке входа может быть JP ... или LD HL,(...)
 	LD	A, (GetFreeMemAddr)
-	CP	0C3H
+	CP	0C3H			; JP ...
+	RST	0
+	JP	Z, APIPRESENT-$
+
+	CP	02AH			; LD HL, (...)
 	RST	0
 	JP	Z, APIPRESENT-$
 	
@@ -152,7 +157,7 @@ DISKOK:
 	; ЮТ-88 и Микро-80 можно попробовать определить тоже по символу на экране или просто сканирование
 	; остановится, т.к. считать данные с экрана в ЮТ-88 и Микро-80 можно не во всех вариантах.
 
-	; Начинаем сканировать память с RAMTOP и дальше
+	; Начинаем сканировать память с RAMSTART и дальше
 	LD	HL, RAMSTART
 	INC	H
 	LD	L, 0
@@ -180,11 +185,9 @@ APIPRESENT:
 	CALL	GetFreeMemAddr
 PrintMem:
 	LD	A, H
-	RST	0
-	CALL	PrintHex-$
+	CALL	PrintHexByte
 	LD	A, L
-	RST	0
-	CALL	PrintHex-$
+	CALL	PrintHexByte
 	
 	; Перемещение CCP/BDOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
@@ -418,22 +421,6 @@ LL3135:	LD	A,(HL)
 	CALL	PrintString
 	RET
 
-PrintHex:
-	PUSH	AF
-	RRCA
-	RRCA
-	RRCA
-	RRCA
-	RST	0
-	CALL	PrintHexNibble-$
-	POP	AF
-PrintHexNibble:
-	AND	0FH
-	CP	10
-	SBC	A,2FH
-	DAA
-	LD	C, A
-	JP	PrintCharFromC
 
 RST0_0	DW	0
 RST0_2:	DB	0
@@ -519,7 +506,8 @@ VT52TERMIMAGE:
 	BINCLUDE	VT52TERM.BIN
 VT52TERMIMAGEEND:
 
-	if	0
+	if	1
+	Z80SYNTAX OFF
 ; ********************************************************
 ; * ПЕРЕМЕЩАЮЩИЙ ЗАГРУЗЧИК ОБЪЕКТНЫХ ПРОГРАММНЫХ МОДУЛЕЙ *
 ; * для радиолюбительского компьютра "Радио-86РК"        *
@@ -527,107 +515,104 @@ VT52TERMIMAGEEND:
 ; Внимание! Эта программа должна загружаться с адреса 0000Н 
 ; и использовать заранее созданнум ВIТМАР-тавлицу           
 ; Вызовы резидентного монитора Радио-86РК
-GETMEM:	EQU 	0F830Н 	; Вернуть значение МАХRАМ в (HL)
-PUTMEM:	EQU 	0F833Н 	; Заменить MAXRAM на содержимое (HL)
-MSB:   	EQU	0F81BH 	; Напечатать сообщение, указанное (HL)
-PRINTA:	EQU 	0F815Н 	; Напечатать содержимое (А) в HEX
-WSTART:	EQU 	0F836Н 	; Вход в CLI монитора.
+GETMEM:	EQU 	0F830H 	; Вернуть значение МАХRАМ в (HL)
+PUTMEM:	EQU 	0F833H 	; Заменить MAXRAM на содержимое (HL)
 	ORG 	0
 INIT: 	JMP 	START 	; Основной вход в аагрузчик с авто-
-GO$ADR:	EQU 	INIT+1 	; установкой aдреса по МАХRАМ.
+GO_ADR:	EQU 	INIT+1 	; установкой aдреса по МАХRАМ.
 INIT1: 	JMP 	START1 	; Вход без автоустановки адреса
 TOPS: 	DB 	0 	; Младший байт длины программы TASK
 BLOCKS: DB 	0 	; Старший байт длины программы TASK
 			; TOPS&BLOCKS вместе содержат 16-
 			; битное представлние верхней грани-
- 					; цы прикладной программы.
+ 			; цы прикладной программы.
 ASTART: DB 	0 	; Адрес начала области перемещения
 SHIFT: 	DB 	0 	; (16-битное число)
 LENGTH: DW 	0 	; длина TASK в байтах
 FILE: 	DW 	0 	; Адрес начала TASK в ОЗУ РК.
 BITMAP: DW 	0 	; Адрес начала таблицы BITMAP
 CONTROL:DW 	0 	; Адрес старта TASK.
-; Загрузка с 	автоматическим резервированием памяти.
-START: 	CALL 	GЕТМЕМ 	; Запросить границу ОЗУ у Монитора
+; Загрузка с автоматическим резервированием памяти.
+START: 	CALL 	GETMEM 	; Запросить границу ОЗУ у Монитора
 	LDA 	TOPS 	; Сравнить, уместится ли "хвост"
-	СМР 	L 	; копии при перемешении на целое
-	JP 	10$ 	; число 256~байтнмх блоков.
-	DCR 	Н 	; Нет " зарезервировать на блок больше '
-10$: 	LDA 	BLOCKS 	; Получить адрес начала области
+	CMP 	L 	; копии при перемешении на целое
+	JP 	L10 	; число 256~байтнмх блоков.
+	DCR 	H 	; Нет " зарезервировать на блок больше '
+L10: 	LDA 	BLOCKS 	; Получить адрес начала области
 	CMA 		; перемещения по размеру TASK.
-	INR 	А
-	ADD 	Н
-	MOV 	Н,А
+	INR 	A
+	ADD 	H
+	MOV 	H,A
 	MVI 	L,0
 	SHLD 	ASTART 	; Сохранить полученное значение
 			; для единообразия.
-; Загрузка с 	ручным резервированием памяти.
+; Загрузка с ручным резервированием памяти.
 START1: LHLD 	ASTART 	;
 	PUSH 	H 	; Start ADDRES is on stack
 	XCHG
 	LHLD 	LENGTH 	; Взять размер TASK в (ВС)
-	MOV 	В,Н
+	MOV 	B,H
 	MOV 	C,L
-	LHLD 	PILE 	; Параметры подготовлены;
-	ХСНО 		; (ВС) "длина, <DE) "начало TASK,
-	PUSH 	В 	; (HL) "начало области копии.
+	LHLD 	FILE 	; Параметры подготовлены;
+	XCHG 		; (ВС) длина, (DE) начало TASK,
+	PUSH 	B 	; (HL) начало области копии.
 ; Пересылка 	прикладной 	программы в "верхние" адреса
-LOOP: 	МОV 	A,В
-	ОRA 	С
+LOOP: 	MOV 	A,B
+	ORA 	C
 	JZ 	ENDLOOP
 	LDAX 	D
-	MOV 	М,А
+	MOV 	M,A
 	INX 	D
-	INX 	Н
-	DCX 	В
+	INX 	H
+	DCX 	B
 	JMP 	LOOP
 ; Коррекция адресов в копии программы TASK
-ENOLOOP:
-	POP 	В 	; Длина
+ENDLOOP:
+	POP 	B 	; Длина
 	POP 	D 	; Начальный адрес
 	PUSH 	D
 	LHLD 	BITMAP 	; Взять указатель на таблицу
-	PUSH 	Н 	; коррекции
+	PUSH 	H 	; коррекции
 	MOV 	H,D
-10$: 	MOV 	А,В 	; Начать коррекцию по таблице
-	ORA 	С 	; Все байты скорректированы?
+LL10: 	MOV 	A,B 	; Начать коррекцию по таблице
+	ORA 	C 	; Все байты скорректированы?
 	JZ 	REPORT 	; Да, выход из программы
-	DCX 	В 	; Нет, Продолжаем проверку
-	MOV 	А,Е
+	DCX 	B 	; Нет, Продолжаем проверку
+	MOV 	A,E
 	ANI 	7 	; Нужен новый байт на BITMAP?
-	JNZ 	20$ 	; Нет, анализируем текущие биты
+	JNZ 	LL20 	; Нет, анализируем текущие биты
 	XTHL 		; Да, загрузим новый байт с L
-	MOV 	А,М
-	INX 	Н
+	MOV 	A,M
+	INX 	H
 	XTHL
 	MOV 	L,A
-20$: 	MOV 	A,L 	; 	Обработка текущего йайта BITMAP:
-	RAL 		; 	начиная со старшего разряда
-	MOV 	L,A 	; 	(На необходимость коррекции
-	JNC 	30$ 	; 	указывает старший бит. т.е. <f:Y>
+LL20: 	MOV 	A,L 	; Обработка текущего байта BITMAP:
+	RAL 		; начиная со старшего разряда
+	MOV 	L,A 	; (На необходимость коррекции
+	JNC 	LL30 	; указывает старший бит. т.е. <f:Y>
 	LDAX 	D
-	ADD 	Н
+	ADD 	H
 	STAX 	D
-30$: 	INX	D
-	JMP 	10$
+LL30: 	INX	D
+	JMP 	LL10
 ; Выход из загрузчика с печатью сообшения и изменением
 ; значения верхней границы ОЗУ MAXRAM в Мониторе.
-REPORT:	POP 	Н
+REPORT:	POP 	H
 	LXI 	H,STMSG ; 	Отпечатать новое значение
-	CALL 	MSG 	; 	стартового адреса копии TASK
-	POP 	Н 	;
+	CALL 	PrintString 	; 	стартового адреса копии TASK
+	POP 	H 	;
 	CALL 	PUTMEM 	; 	Изменить NAXRAM для "эахлопывания"
 	XCHG 		; 	загруженной копии е ОЗУ.
 	LHLD 	CONTROL ; 	Изменить адрес перехода по "Б0"
-	DAD 	Н 	; 	на стартовый адрес копии TASK
-	SHLD 	GO$ADR
+	DAD 	H 	; 	на стартовый адрес копии TASK
+	SHLD 	GO_ADR
 	MOV 	A,H
-	CALL 	PRINTA
+	CALL 	PrintHexByte
 	MOV 	A,L
-	CALL 	PRINTA
+	CALL 	PrintHexByte
 	LXI 	H,CRLF 	; 	Подготовить HOByte строку для CLI
-	CALL 	MSG
-	JMP 	WStart
+	CALL 	PrintString
+	JMP 	WarmBoot
 STMSG: 	DB 	"NEW START ADDRESS:" ,0
 CRLF: 	DB 	0DH,0AH,0
 	endif
