@@ -10,6 +10,7 @@
 ; Для МИКРО-80 (Стандартный МОНИТОР и М/80К) и ЮТ-88 (МОНИТОР-F) 
 ; используется системная переменная EK_ADR = 0F75AH
 ; todo Эмуляция графических символов (использование +-! и т.п.)
+; todo Исправлен порядок обработки контрольных символов (обрабатываются независимо от активной Esc- последовательности)
 ;
 ; Таблица поддерживаемых кодов (+ означает наличие поддержки)
 ;
@@ -42,7 +43,8 @@
 	CPU		8080
 	Z80SYNTAX	EXCLUSIVE
 
-	INCLUDE	CFG.INC
+	include	cfg.inc
+	include	syscalls.inc
 
 	ORG	TERM_ADDR
 
@@ -56,7 +58,7 @@ VT52_CST:
 	OR	A
 	LD	A, 0
 	RET	NZ
-	JP	0F812H
+	JP	GetKeyboardStatus
 
 VT52_CI:
 	PUSH	HL
@@ -79,7 +81,7 @@ Unpress:
 	JP	Z, Unpress
 	POP	AF
 	
-	JP	0F803H
+	JP	InputSymbol
 
 ;---------------------------------------------------------
 
@@ -115,6 +117,7 @@ VT52_CO:
 	PUSH	BC
 	PUSH	DE
 	PUSH	AF
+
 	LD	A,(EscSequenceState)
 	OR	A				; CP 00h
 	JP	NZ, ProcessEscSequence
@@ -124,15 +127,16 @@ VT52_CO:
 
 	LD	A,C		
 	CP	' '             ; ' '
-	RET	NC		;JP NC,PrintCAndExit
+	RET	NC		; JP NC, PrintCAndExit
+
 	CP	08h
-	RET	Z		;JP Z,PrintCAndExit
+	RET	Z		; JP Z, PrintCAndExit
 	CP	0Ah
-	RET	Z		;JP Z,PrintCAndExit
+	RET	Z		; JP Z, PrintCAndExit
 	CP	0Dh
-	RET	Z		;JP Z,PrintCAndExit
+	RET	Z		; JP Z, PrintCAndExit
 	CP	1Fh
-	RET	Z		;JP Z,PrintCAndExit
+	RET	Z		; JP Z, PrintCAndExit
 	POP	HL
 	CP	1Bh
 	JP	NZ,ExitTerm
@@ -153,44 +157,34 @@ ProcessEscSequence:
 	LD	DE, EndEscSeqPrintCAndExit
 	PUSH	DE
 	LD	A,C
+	
 	CP	'A'             ; 'A' Cursor up
-;	JP	NZ,LF543
 	LD	C,19h
-	RET	Z
+	RET	Z		; JP Z, EndEscSeqPrintCAndExit
 
-LF543:	CP	'B'             ; 'B' Cursor down
-;		JP			NZ,LF54D
+	CP	'B'             ; 'B' Cursor down
 	LD	C,1Ah
-;		JP			EndEscSeqPrintCAndExit
-		;JP			Z, EndEscSeqPrintCAndExit
-	RET	Z
-LF54D:	CP	'C'             ; 'C' Cursor right
-;		JP			NZ,LF557
+	RET	Z		; JP Z, EndEscSeqPrintCAndExit
+	
+	CP	'C'             ; 'C' Cursor right
 	LD	C,18h
-		;JP			Z, EndEscSeqPrintCAndExit
-	RET	Z
+	RET	Z		; JP Z, EndEscSeqPrintCAndExit
 
-LF557:	CP	'D'             ; 'D' Cursor left
-;		JP			NZ,LF561
+	CP	'D'             ; 'D' Cursor left
 	LD	C,08h
-		;JP			Z, EndEscSeqPrintCAndExit
-	RET	Z
+	RET	Z		; JP Z, EndEscSeqPrintCAndExit
 
-LF561:	CP	'E'             ; 'E' Clear Screen - расширение с Atari
-;		JP			NZ,LF56B
+	CP	'E'             ; 'E' Clear Screen - расширение с Atari
 	LD	C,1Fh
-		;JP			Z, EndEscSeqPrintCAndExit
-	RET	Z
+	RET	Z		; JP Z, EndEscSeqPrintCAndExit
 
-LF56B:	CP	'H'             ; 'H' Cursor home
-;		JP			NZ,LF575
+	CP	'H'             ; 'H' Cursor home
 	LD	C,0Ch
-		;JP			Z, EndEscSeqPrintCAndExit
-	RET	Z
+	RET	Z		; JP Z, EndEscSeqPrintCAndExit
 	POP	HL
 	LD	C, A		; Восстанавливаем C
 
-LF575:	CP	'J'             ; 'J' Clear to end of screen
+	CP	'J'             ; 'J' Clear to end of screen
 	JP	NZ,LF58A
 	LD	HL,(EK_ADR)
 	LD	A,0F0h
@@ -217,9 +211,9 @@ LF59A:	LD	(HL),B
 ESC_Y:	CP	'Y'             ; 'Y' Move cursor to position
 	JP	NZ,ESC_Z
 
-	; --- Гашение текушего курсора
-	LD	HL,(EK_ADR)
-	LD	DE,0F801h		; -7FFH
+	; --- Гашение текущего курсора
+	LD	HL, (EK_ADR)
+	LD	DE, -07FFH
 	ADD	HL,DE
 	LD	(HL),00h
 	; -----
@@ -242,7 +236,7 @@ EndEscSeqPrintCAndExit:
 	LD	(EscSequenceState),A
 
 PrintCAndExit:
-	CALL	0F809H
+	CALL	PrintCharFromC
 	JP	ExitTerm
 
 LF5B9:	LD	A,C
@@ -287,7 +281,7 @@ LF5EB:	LD	L,A
 
 	; --- Новая позиция курсора
 	LD	(EK_ADR),HL
-	LD	DE,0F801h		; -07FFH
+	LD	DE, -07FFH
 	ADD	HL,DE
 	LD	(HL),80h
 
