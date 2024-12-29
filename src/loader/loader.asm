@@ -24,6 +24,21 @@
 BASE	EQU             0h
 	ORG		BASE		; По факту грузить можем в любые адреса
 
+; ───────────────────────────────────────────────────────────────────────
+; Макросы для относительного перехода относительно текущего адреса.
+; Не работает для первого операнда:
+; REL LD Label1, HL - не работает
+; ───────────────────────────────────────────────────────────────────────
+
+REL	MACRO	CMD, ADDR
+	RST	0
+	IF	ARGCOUNT==2
+	CMD, (ADDR-$) & 0ffffh
+	ELSE
+	CMD-$
+	ENDIF
+	ENDM
+
 Start:
 
 ; ───────────────────────────────────────────────────────────────────────
@@ -55,8 +70,7 @@ BaseAddress:
 	RST	0
 	LD	((RST0_2-$) & 0ffffh), A
 
-	RST	0
-	LD	HL, L3120-$
+	REL	LD HL, L3120-$
 	RST	0
 	LD	(Patch1+1-$), HL
 	RST	0
@@ -66,19 +80,15 @@ BaseAddress:
 Unpress:
 	CALL	GetKeyboardStatus	; Ждем отпускания
 	INC	A
-	RST	0
-	JP	Z, Unpress-$
+	REL	JP Z, Unpress
 
-	RST	0
-	LD	HL, HELLO-$
+	REL	LD HL, HELLO
 	CALL	PrintString
 
 	; Проверяем наличие VT-52
-	RST	0
-	CALL	VT52DETECT-$
+	REL	CALL VT52DETECT
 
-	RST	0
-	LD	HL, VT52PRESENT-$
+	REL	LD HL, VT52PRESENT
 
 	; Если VT-52 найден, то сообщаем об том
 	PUSH	AF
@@ -87,11 +97,9 @@ Unpress:
 
 	; Если VT-52 не найден, то устанавливаем эмулятор
 	PUSH	AF
-	RST	0
-	CALL	NZ, VT52INSTALL-$
+	REL	CALL NZ, VT52INSTALL
 	POP	AF
-	RST	0
-	CALL	Z, MONINSTALL-$
+	REL	CALL Z, MONINSTALL
 	
 	; Ищем RAM-диск
 	LD	HL, 0
@@ -111,40 +119,32 @@ Unpress:
 	EX	DE, HL
 	LD	SP, HL			; Восстановили стек
 
-
 	; Сравниваем DE с BC
 	; Данные совпали => нет диска
 	LD	A,B
 	CP	D
-	RST	0
-	JP	NZ, DISKOK-$
+	REL	JP NZ, DISKOK
 	LD	A,C
 	CP	E
-	RST	0
-	JP	NZ, DISKOK-$
+	REL	JP NZ, DISKOK
 
-	RST	0
-	JP	Z, NODISK-$
+	REL	JP Z, NODISK
 
 DISKOK:
-	RST	0
-	LD	HL, DISKFOUND-$
+	REL	LD HL, DISKFOUND
 	CALL	PrintString
 
 	; Проверяем, есть ли п/п определения RAMTOP
-	RST	0
-	LD	HL, MAXMEM-$
+	REL	LD HL, MAXMEM
 	CALL	PrintString
 
 	; В этой точке входа может быть JP ... или LD HL,(...)
 	LD	A, (GetFreeMemAddr)
 	CP	0C3H			; JP ...
-	RST	0
-	JP	Z, APIPRESENT-$
+	REL	JP Z, APIPRESENT
 
 	CP	02AH			; LD HL, (...)
-	RST	0
-	JP	Z, APIPRESENT-$
+	REL	JP Z, APIPRESENT
 	
 	; У нас нет API для определения верхней границы памяти.
 	; Значит это:
@@ -169,16 +169,14 @@ NextPage:
 	LD	A, (HL)
 	LD	(HL), C
 	CP	0EFH
-	RST	0
-	JP	Z, NextPage-$
+	REL	JP Z, NextPage
 
 	DEC	H
 	LD	L, 0FFH
 	
 	; Теперь надо как-то определиться с картой памяти, т.к. здесь и видео-ОЗУ и системные ячейки и пр.
 	
-	RST	0
-	JP	PrintMem-$
+	REL	JP PrintMem
 
 APIPRESENT:
 
@@ -191,11 +189,9 @@ PrintMem:
 	
 	; Перемещение CCP/BDOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
-	RST	0
-	LD	HL, DISKIMAGE-$
+	REL	LD HL, DISKIMAGE
 	LD	DE, CCP_ADDR
-	RST	0
-	LD	BC, ENDC-$
+	REL	LD BC, ENDC
 COPYLOOP:
 	LD	A,(HL)
 	LD	(DE),A
@@ -203,20 +199,16 @@ COPYLOOP:
 	INC	DE
 	LD	A,H
 	CP	B
-	RST	0
-	JP	NZ,COPYLOOP-$
+	REL	JP NZ,COPYLOOP
 	LD	A,L
 	CP	C
-	RST	0
-	JP	NZ,COPYLOOP-$
+	REL	JP NZ,COPYLOOP
 
 	; Перемещение BIOS по итоговым адресам
 	; (адреса перебираются снизу вверх)
-	RST	0
-	LD	HL, BIOSIMAGE-$
+	REL	LD HL, BIOSIMAGE-$
 	LD	DE, BIOS_ADDR
-	RST	0
-	LD	BC, BIOSIMAGEEND-$
+	REL	LD BC, BIOSIMAGEEND-$
 COPYLOOP2:
 	LD	A,(HL)
 	LD	(DE),A
@@ -224,17 +216,14 @@ COPYLOOP2:
 	INC	DE
 	LD	A,H
 	CP	B
-	RST	0
-	JP	NZ,COPYLOOP2-$
+	REL	JP NZ,COPYLOOP2
 	LD	A,L
 	CP	C
-	RST	0
-	JP	NZ,COPYLOOP2-$
+	REL	JP NZ,COPYLOOP2
 
 	;
 MenuLoop:
-	RST	0
-	LD	HL, MENU-$
+	REL	LD HL, MENU
 	CALL	PrintString
 	CALL	InputSymbol
 
@@ -242,15 +231,12 @@ MenuLoop:
 	JP	Z, BIOS_ADDR
 
 	CP	'2'
-	RST	0
-	JP	Z, InitDisk-$
+	REL	JP Z, InitDisk
 
 	CP	'1'
-	RST	0
-	JP	Z, InitSystem-$
+	REL	JP Z, InitSystem
 
-	RST	0
-	JP	MenuLoop-$
+	REL	JP MenuLoop
 
 InitSystem:
 	RST	0
@@ -295,8 +281,7 @@ Patch2:
 	JP	BIOS_ADDR		; Холодный старт BIOS
 
 NODISK:
-	RST	0
-	LD	HL, NODISKMSG-$
+	REL	LD HL, NODISKMSG
 	CALL	PrintString
 	CALL	InputSymbol
 	JP	WarmBoot
@@ -341,8 +326,7 @@ RST0:	EX	(SP),HL		; Save H,L and get next PC
 ;	не установлен Z - нет терминала
 ;---------------------------------------------------
 VT52DETECT:
-	RST	0
-	LD	HL, VT52-$
+	REL	LD HL, VT52
 	CALL	PrintString
 	CALL	GetKeyboardStatus	; По идее, надо ждать с тайм-аутом, т.к. терминал может быть асинхронным
 	INC	A
@@ -361,14 +345,11 @@ VT52DETECT:
 	RET	NZ
 	CALL	InputSymbol
 	CP	'K'		; VT-52
-	RST	0
-	JP	Z, VDFOUND-$
+	REL	JP Z, VDFOUND
 	CP	'L'		; VT-52 + Copier
-	RST	0
-	JP	Z, VDFOUND-$
+	REL	JP Z, VDFOUND
 	CP	'M'		; VT-52 + Printer
-	RST	0
-	JP	Z, VDFOUND-$
+	REL	JP Z, VDFOUND
 	CP	'Z'		; VT-100 or similar in VT-52 Emulation mode
 	RET	NZ
 VDFOUND:XOR	A		
@@ -376,34 +357,27 @@ VDFOUND:XOR	A
 
 	; Перемещение эмулятора терминала по итоговым адресам
 VT52INSTALL:	
-	RST	0
-	LD	HL,VT52TERMIMAGE-$
+	REL	LD HL,VT52TERMIMAGE
 	LD	DE,TERM_ADDR
-	RST	0
-	LD	BC,VT52TERMIMAGEEND-$
+	REL	LD BC,VT52TERMIMAGEEND
 L3135:	LD	A,(HL)
 	LD	(DE),A
 	INC	HL
 	INC	DE
 	LD	A,H
 	CP	B
-	RST	0
-	JP	NZ,L3135-$
+	REL	JP NZ,L3135
 	LD	A,L
 	CP	C
-	RST	0
-	JP	NZ,L3135-$
-	RST	0
-	LD	HL, VT52NOTPRESENT-$
+	REL	JP NZ,L3135
+	REL	LD HL, VT52NOTPRESENT
 	CALL	PrintString
 	RET
 
 MONINSTALL:	
-	RST	0
-	LD	HL,MONTERMIMAGE-$
+	REL	LD HL,MONTERMIMAGE
 	LD	DE,TERM_ADDR
-	RST	0
-	LD	BC,MONTERMIMAGEEND-$
+	REL	LD BC,MONTERMIMAGEEND
 LL3135:	LD	A,(HL)
 	LD	(DE),A
 	INC	HL
@@ -431,7 +405,7 @@ RST0_2:	DB	0
 
 	ORG		BASE+300H
 DISKIMAGE:
-	BINCLUDE	CCP.BIN		; size=800H
+	BINCLUDE	CCP.BIN			; size=800H
 	ORG		BASE+300H+800H
 	BINCLUDE	BDOS.BIN		; size=E00H
 	DB	BASE+300H+1800H-$ DUP (0FFH)	; Резервирем 6 дорожек
