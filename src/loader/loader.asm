@@ -25,7 +25,7 @@ BASE	EQU             0h
 	ORG		BASE		; По факту грузить можем в любые адреса
 
 ; ───────────────────────────────────────────────────────────────────────
-; Макросы для относительного перехода относительно текущего адреса.
+; Макрос для относительного перехода относительно текущего адреса.
 ; Не работает для первого операнда:
 ; REL LD Label1, HL - не работает
 ; ───────────────────────────────────────────────────────────────────────
@@ -384,14 +384,11 @@ LL3135:	LD	A,(HL)
 	INC	DE
 	LD	A,H
 	CP	B
-	RST	0
-	JP	NZ,LL3135-$
+	REL	JP NZ,LL3135
 	LD	A,L
 	CP	C
-	RST	0
-	JP	NZ,LL3135-$
-	RST	0
-	LD	HL, MONPRESENT-$
+	REL	JP NZ,LL3135
+	REL	LD HL, MONPRESENT
 	CALL	PrintString
 	RET
 
@@ -456,8 +453,14 @@ ENDC	EQU		$
 	;     AL numbers can either be 8-bit (if there are fewer than 256 blocks on the
 	;    disc) or 16-bit (stored low byte first). 
 
-	ORG	BASE+300H+1800H	;было 4D00H	
-	DB	0,"CH      COM", 0, 0, 0, (CHEND-CHSTART)/128		; 6=size/128
+	; Макрос для формирования записи каталога CP/M
+FILE	MACRO	user, filename, extension, ex, s1, rc
+	DB	user, filename, 8-strlen(filename) dup ' ', extension, 3-strlen(extension) dup ' ', ex, s1, 0, rc
+	ENDM
+
+	ORG	BASE+300H+1800H	;было 4D00H
+	FILE	0, "CH", "COM", 0, 0, (CHEND-CHSTART)/128		; 6=size/128
+;	DB	0,"CH      COM", 0, 0, 0, (CHEND-CHSTART)/128
 	DB	1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0		; 1=start block
 	DB	64*32-1*32 DUP (0E5H)
 
