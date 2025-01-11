@@ -15,6 +15,7 @@
 ; todo Поддержка перенаправления (IOByte)
 ; todo Фиксы косяков МОНИТОРов перенесены в эмулятор VT-52
 ; + BIOS исключен с диска, т.к. он оттуда никем и никогда не грузится, а место занимает.
+; todo Совместить MON и BIOS?
 
 	CPU			8080
 	Z80SYNTAX	EXCLUSIVE
@@ -109,6 +110,10 @@ CONST:
 ;
 ; Перезагружает командный процессор и BDOS.
 ; CCP и BDOS хранится на зарезервированных дорожках квазидиска.
+;
+; @todo: вообще, зачем грузить с квазидиска, если эти же данные есть на ROM-диске?
+; Оттуда и грузим. Другой вопрос, что надо бы предусмотреть возможность замены
+; BDOS и CPP.
 
 WBOOT:  LD		SP,0080h
 	LD		C,00h
@@ -165,7 +170,7 @@ BOOT:	LD		SP,0100h
 ; ───────────────────────────────────────────────────────────────────────
 
 	LD	A, (0FFD8H)	; Проверяем наличие Микро-80 с М/80К
-	CP	038H		; Букава 'm' от приветствия
+	CP	038H		; Буква 'm' от приветствия
 	JP	NZ, NORMALF800	; Если нет, то работаем как обычно
 
 	LD	DE, CONST
@@ -182,8 +187,11 @@ BOOT:	LD		SP,0100h
 
 NORMALF800:
 	endif
+
+	if	BIOS_HELLO
 	LD	HL,HELLO
 	CALL	VT52_MSG
+	endif
 
 BOOT1:	XOR	A
 	LD	(0004h),A
@@ -265,7 +273,7 @@ HOME:	LD	C,00h
 ; 
 
 SETTRK:	
-	if 0
+	if 1
 	LD	A, 40H
 	ADD	A, C
 	LD	B, 11111110b
@@ -394,8 +402,8 @@ RDSK:	POP		DE
 	JP		NZ,RDSK
 ENDI0:	LD		A,0FFh
 	OUT		(40h),A
-	LD		HL,(OLDSP)
-	LD		SP,HL
+OLDSP	EQU		$+1
+	LD		SP, 0		;OLDSP
 	XOR		A
 	RET
 
@@ -419,9 +427,9 @@ WRITE:	CALL		COMAD
 	LD		HL,(PHAD)
 	LD		SP,HL
 	LD		HL,(DMAAD)
+	LD		B,40h
 	ADD		HL,DE
 	DEC		HL
-	LD		B,40h
 	LD		A,(DSKN)
 	OUT		(40h),A
 WDSK:	LD		D,(HL)
@@ -445,19 +453,17 @@ LDBD5:	ADD		HL,DE
 LDBDA:	LD		DE,0080h
 	LD		A,(SECTOR)
 LDBE0:	DEC		A
-	JP		Z,LDBE8
+LDBE8:	LD		(PHAD),HL
+	RET		Z
+;	JP		Z,LDBE8
 	ADD		HL,DE
 	JP		LDBE0
-
-LDBE8:	LD		(PHAD),HL
-	RET
 
 DSKN:	DS		1
 TRACK:	DS		1
 SECTOR:	DS		1
 DMAAD:	DS		2
 PHAD:	DS		2
-OLDSP:	DS		2
 
 ;       dn      номер диска 0,1,...,n-1
 ;       fsc     номер первого сектора на дорожке (обычно 0 или 1)
@@ -478,4 +484,8 @@ OLDSP:	DS		2
 	diskdef		0, DISK_0_FSC, DISK_0_LSC, DISK_0_SKF, 2048, (32-3)+32*7, 64, 32, DISK_0_OFS
 	endef
 
+	if		BIOS_HELLO
 HELLO:	DB		01fh, "*MikrO/80* CP/M 2.2", 0ah, 0
+	else
+	DB		0eah	; Это для того, чтобы буфер не удалялся из бинарника
+	endif

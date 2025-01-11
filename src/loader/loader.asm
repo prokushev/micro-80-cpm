@@ -239,10 +239,8 @@ MenuLoop:
 	REL	JP MenuLoop
 
 InitSystem:
-	RST	0
-	LD	HL,ENDC-1-$
-	RST	0
-	LD	BC,DISKIMAGE-1-$
+	REL	LD HL,ENDC-1
+	REL	LD BC,DISKIMAGE-1
 	LD	SP,ENDC-DISKIMAGE
 	RST	0			; !!!!todo глюка!!!
 	JP	Copy-$
@@ -250,8 +248,7 @@ InitSystem:
 InitDisk:
 	; Сохранение копии CP/M на квазидиске
 	; (адреса перебираются сверху вниз)
-	RST	0
-	LD	HL,ENDDISKIMAGE-$
+	REL	LD HL,ENDDISKIMAGE
 	RST	0
 	LD	BC,DISKIMAGE-1-$
 	LD	SP,ENDDISKIMAGE-DISKIMAGE+1
@@ -454,8 +451,8 @@ ENDC	EQU		$
 	;    disc) or 16-bit (stored low byte first). 
 
 	; Макрос для формирования записи каталога CP/M
-FILE	MACRO	user, filename, extension, ex, s1, rc
-	DB	user, filename, 8-strlen(filename) dup ' ', extension, 3-strlen(extension) dup ' ', ex, s1, 0, rc
+FILE	MACRO	user, filename, extension, ex, s2, rc
+	DB	user, filename, 8-strlen(filename) dup ' ', extension, 3-strlen(extension) dup ' ', ex, 0, s2, rc
 	ENDM
 
 	ORG	BASE+300H+1800H	;было 4D00H

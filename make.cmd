@@ -4,7 +4,7 @@ md log
 md obj
 
 SET PATH=tools;%PATH%
-SET PLM80 %CD%
+SET PLM80=%CD%
 
 asw -qLU -i inc src\vt52term\vt52term.asm -olist log\vt52term.lst -o obj\vt52term.p
 p2bin obj\vt52term.p bin\vt52term.bin
