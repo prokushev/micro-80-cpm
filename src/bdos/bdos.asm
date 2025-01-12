@@ -17,6 +17,8 @@
 ;   removed empty comments
 ;   added ifdef origin to allow origin to be specified from command line
 ;   added commments about serial number
+;   небольшая оптимизация по размеру (свободное место для расширения возможностей)
+;   ifdef origin заменен на ifdef bdos_addr
 
 	cpu	8080
 
@@ -216,7 +218,6 @@ errflg:
 	;(drop through to conin)
 	;ret
 
-
 ;	console handlers
 conin:
 	;read console character to A
@@ -279,6 +280,14 @@ conb0:	;character in accum, save it
 conb1:	;return with true set in accumulator
 	mvi	a,1
 	ret
+
+crlf:
+	;carriage return line feed sequence
+	mvi	c,cr
+	call	conout
+	mvi	c,lf
+	;jmp	conout
+	;ret
 
 conout:
 	;compute character position/write console char from C
@@ -385,28 +394,6 @@ crlfp0:
 	mvi	c,' '		;print blank
 	call	conout 
 	jmp	crlfp0
-
-
-crlf:
-	;carriage return line feed sequence
-	mvi	c,cr
-	call	conout
-	mvi	c,lf
-	jmp	conout
-	;ret
-
-print:
-	;print message until M(BC) = '$'
-	ldax	b		;stop on $
-	cpi	'$'
-	rz
-	;more to print
-	inx	b		;char to C
-	push	b
-	mov	c,a
-	call	tabout		;another character printed
-	pop	b
-	jmp	print
 
 read:	;read to info address (max length, current length, buffer)
 	lda	column		;save start for ctl-x, ctl-h
@@ -636,7 +623,20 @@ func9:
 	xchg			;was lhld info	
 	mov	c,l		;BC=string address
 	mov	b,h
-	jmp	print		;out to console	
+	;jmp	print		;out to console	
+	
+print:
+	;print message until M(BC) = '$'
+	ldax	b		;stop on $
+	cpi	'$'
+	rz
+	;more to print
+	inx	b		;char to C
+	push	b
+	mov	c,a
+	call	tabout		;another character printed
+	pop	b
+	jmp	print
 
 func10	equ	read
 	;read a buffered console line
@@ -735,19 +735,6 @@ goerr:
 
 
 ;	local subroutines for bios interface
-
-move:
-	;move data length of length C from source DE to
-	;destination given by HL
-	inr	c		;in case it is zero
-move0:
-	dcr	c		;more to move
-	rz
-	ldax	d		;one byte moved
-	mov	m,a
-	inx	d		;to next byte
-	inx	h
-	jmp	move0
 
 selectdisk:
 	;select the disk drive given by curdsk, and fill
@@ -1365,16 +1352,6 @@ setdma:
 	jmp	setdmaf
 
 
-dir_to_user:
-	;copy the directory entry to the user buffer
-	;after call to search or searchn by user code
-	lhld	buffa		;source is directory buffer
-	xchg
-	lhld	dmaad		;destination is user dma address
-	mvi	c,recsiz	;copy entire record
-	jmp	move
-	;ret
-
 end_of_dir:
 	;return zero flag if at end of directory, non zero
 	;if not at end (end of dir if dcnt = 0ffffh)
@@ -1543,78 +1520,6 @@ scanm3:
 	pop	b		;recall counter
 	jmp	scandm0		;for another item
 
-initialize:
-	;initialize the current disk
-	;lret = false ;set to true if $ file exists
-	;compute the length of the allocation vector - 2
-	lhld	maxall		;perform maxall/8
-	mvi	c,3
-	;number of bytes in alloc vector is (maxall/8)+1
-	call	hlrotr		;HL = maxall/8+1
-	inx	h
-	mov	b,h		;count down BC til zero
-	mov	c,l
-	lhld	alloca		;base of allocation vector
-	;fill the allocation vector with zeros
-initial0:
-	mvi	m,0		;alloc(i)=0
-	inx	h
-	dcx	b		;count length down
-	mov	a,b
-	ora	c
-	jnz	initial0
-	;set the reserved space for the directory
-	lhld	dirblk
-	xchg
-	lhld	alloca		;HL=.alloc()
-	mov	m,e		;sets reserved directory blks
-	inx	h
-	mov	m,d
-	;allocation vector initialized, home disk
-	call	home
-        ;cdrmax = 3 (scans at least one directory record)
-	lhld	cdrmaxa
-	mvi	m,3
-	inx	h
-	mvi	m,0
-	;cdrmax = 0000
-	call	set_end_dir	;dcnt = enddir
-	;read directory entries and check for allocated storage
-initial2:
-	mvi	c,_true
-	call	read_dir
-	call	end_of_dir	;return if end of directory
-	rz
-	;not end of directory, valid entry?
-	call	getdptra	;HL = buffa + dptr
-	mvi	a,empty
-	cmp	m
-	jz	initial2	;go get another item
-	;not empty, user code the same?
-	lda	usrcode
-	cmp	m
-	jnz	pdollar
-	;same user code, check for '$' submit
-	inx	h		;first character
-	mov	a,m
-	sui	'$'		;dollar file?
-	jnz	pdollar
-	;dollar file found, mark in lret
-	dcr	a		;lret = 255
-	sta	lret
-pdollar:
-	;now scan the disk map for allocated blocks
-	mvi	c,1		;set to allocated
-	call	scandm
-	call	setcdr		;set cdrmax to dcnt
-	jmp	initial2	;for another entry
-
-copy_dirloc:
-	;copy directory location to lret following
-	;delete, rename, ... ops
-	lda	dirloc
-	jmp	sta_ret
-;	ret
 
 compext:
 	;compare extent# in A with that in C, return nonzero
@@ -1871,6 +1776,399 @@ indic0:
 	call	searchn
 	jmp	indic0
 
+open_reel:
+	;close the current extent, and open the next one
+	;if possible.  RMF is true if in read mode
+	xra	a		;set true if actually copied
+	sta	fcb_copied
+	call	close		;close current extent
+	;lret remains at enddir if we cannot open the next ext
+	call	end_of_dir	;return if end
+	rz
+	;increment extent number
+	lhld	info		;HL=.fcb(extnum)
+	lxi	b,extnum
+	dad	b
+	mov	a,m		;fcb(extnum)=++1
+	inr	a
+	ani	maxext
+	mov	m,a
+	jz	open_mod	;move to next module if zero
+	;may be in the same extent group
+	mov	b,a
+	lda	extmsk
+	ana	b
+	;if result is zero, then not in the same group
+	lxi	h,fcb_copied	;true if the fcb was copied to directory
+	ana	m		;produces a 00 in accumulator if not written
+	jz	open_reel0	;go to next physical extent
+	;result is non zero, so we must be in same logical ext
+	jmp	open_reel1	;to copy fcb information
+open_mod:
+	;extent number overflow, go to next module
+	lxi	b,(modnum-extnum)	;HL=.fcb(modnum)
+	dad	b
+	inr	m		;fcb(modnum)=++1
+	;module number incremented, check for overflow
+	mov	a,m		;mask high order bits
+	ani	maxmod
+	jz	open_r_err	;cannot overflow to zero
+	;otherwise, ok to continue with new module
+open_reel0:
+	mvi	c,namlen	;next extent found?
+	call	search
+	call	end_of_dir
+	jnz	open_reel1
+	;end of file encountered
+	lda	rmf		;0ffh becomes 00 if read
+	inr	a
+	jz	open_r_err	;sets lret = 1
+	;try to extend the current file
+	call	make
+	;cannot be end of directory
+	call	end_of_dir
+	jz	open_r_err	;with lret = 1
+	jmp	open_reel2
+open_reel1:
+	;not end of file, open
+	call	open_copy
+open_reel2:
+	call	getfcb		;set parameters
+	xra	a		;lret = 0
+	jmp	sta_ret
+;	ret ;with lret = 0
+open_r_err:
+	;cannot move to next extent of this file
+	call	setlret1	;lret = 1
+	jmp	setfwf		;ensure that it will not be closed
+	;ret
+
+rseek:
+	;random access seek operation, C=0ffh if read mode
+	;fcb is assumed to address an active file control block
+	;(modnum has been set to 1100_0000b if previous bad seek)
+	xra	a		;marked as random access operation
+	sta	seqio
+rseek1:
+	push	b		;save r/w flag
+	lhld	info		;DE will hold base of fcb
+	xchg
+	lxi	h,ranrec	;HL=.fcb(ranrec)
+	dad	d
+	mov	a,m		;record number
+	ani	7fh
+	push	psw
+	mov	a,m		;cy=lsb of extent#
+	ral
+	inx	h		;A=ext#
+	mov	a,m
+	ral
+	ani	11111b
+	mov	c,a		;C holds extent number, record stacked
+	mov	a,m		;mod#
+	rar
+	rar
+	rar
+	rar
+	ani	1111b
+	mov	b,a		;B holds module#, C holds ext#
+	pop	psw		;recall sought record #
+	;check to insure that high byte of ran rec = 00
+	inx	h		;l=high byte (must be 00)
+	mov	l,m
+	inr	l		;zero flag, l=6
+	dcr	l
+	mvi	l,6
+	;produce error 6, seek past physical eod
+	jnz	seekerr
+	;otherwise, high byte = 0, A = sought record
+	lxi	h,nxtrec	;HL = .fcb(nxtrec)
+	dad	d
+	mov	m,a		;sought rec# stored away
+	;arrive here with B=mod#, C=ext#, DE=.fcb, rec stored
+	;the r/w flag is still stacked.  compare fcb values
+	lxi	h,extnum	;A=seek ext#
+	dad	d
+	mov	a,c
+	sub	m		;tests for = extents
+	jnz	ranclose
+	;extents match, check mod#
+	lxi	h,modnum	;B=seek mod#
+	dad	d
+	mov	a,b
+	;could be overflow at eof, producing module#
+	;of 90H or 10H, so compare all but fwf
+	sub	m		;same?
+	ani	7fh
+	jz	seekok
+ranclose:
+	push	b		;save seek mod#,ext#, .fcb
+	push	d
+	call	close		;current extent closed
+	pop	d		;recall parameters and fill
+	pop	b
+	mvi	l,3		;cannot close error #3
+	lda	lret
+	inr	a
+	jz	badseek
+	lxi	h,extnum	;fcb(extnum)=ext#
+	dad	d
+	mov	m,c
+	lxi	h,modnum	;fcb(modnum)=mod#
+	dad	d
+	mov	m,b
+	call	open		;is the file present?
+	lda	lret		;open successful?
+	inr	a
+	jnz	seekok
+	;cannot open the file, read mode?
+	pop	b		;r/w flag to c (=0ffh if read)
+	push	b		;everyone expects this item stacked
+	mvi	l,4		;seek to unwritten extent #4
+	inr	c		;becomes 00 if read operation
+	jz	badseek		;skip to error if read operation
+	;write operation, make new extent
+	call	make
+	mvi	l,5		 ;cannot create new extent #5
+	lda	lret		;no dir space
+	inr	a
+	jz	badseek
+	;file make operation successful
+seekok:
+	pop	b		;discard r/w flag
+	xra	a		;with zero set
+	jmp	sta_ret
+badseek:
+	;fcb no longer contains a valid fcb, mark
+	;with 1100_000b in modnum field so that it
+	;appears as overflow with file write flag set
+	push	h		;save error flag
+	call	getmodnum	;HL = .modnum
+	mvi	m,11000000b
+	pop	h		;and drop through
+seekerr:
+	pop	b		;discard r/w flag
+	mov	a,l		;lret=#, nonzero
+	sta	lret
+	;setfwf returns non-zero accumulator for err
+	jmp	setfwf		;flag set, so subsequent close ok
+	;ret
+
+compute_rr:
+	;compute random record position for getfilesize/setrandom
+	xchg
+	dad	d
+	;DE=.buf(dptr) or .fcb(0), HL = .f(nxtrec/reccnt)
+	mov	c,m		;BC = 0000 0000 ?rrr rrrr
+	mvi	b,0
+	lxi	h,extnum	;A=e000 0000
+	dad	d
+	mov	a,m
+	rrc
+	ani	80h
+	add	c
+	mov	c,a
+	mvi	a,0
+	adc	b
+	mov	b,a
+	;BC = 0000 000? errrr rrrr
+	mov	a,m
+	rrc
+	ani	0fh
+	add	b
+	mov	b,a
+	;BC = 000? eeee errrr rrrr
+	lxi	h,modnum	;A=XXX? mmmm
+	dad	d
+	mov	a,m
+	add	a		;cy=? A=mmmm 0000
+	add	a
+	add	a
+	add	a
+	push	psw
+	add	b
+	mov	b,a
+	;cy=?, BC = mmmm eeee errr rrrr
+	push	psw		;possible second carry
+	pop	h		;cy = lsb of L
+	mov	a,l		;cy = lsb of A
+	pop	h		;cy = lsb of L
+	ora	l		;cy/cy = lsb of A
+	ani	1		;A = 0000 000? possible carry-out
+	ret
+
+setrandom:
+	;set random record from the current file control block
+	lhld	info		;ready params for computesize
+	lxi	d,nxtrec
+	call	compute_rr	;DE=info, A=cy, BC=mmmm eeee errr rrrr
+	lxi	h,ranrec	;HL = .fcb(ranrec)
+	dad	d
+	mov	m,c		;to ranrec
+	inx	h
+	mov	m,b
+	inx	h
+	mov	m,a
+	ret
+
+curselect:
+	lda	linfo		;skip if linfo=curdsk
+	lxi	h,curdsk
+	cmp	m
+	rz
+	mov	m,a		;curdsk=info
+	;jmp	select
+	;ret
+
+select:
+	;select disk info for subsequent input or output ops
+	lhld	dlog
+	lda	curdsk
+	mov	c,a
+	call	hlrotr
+	push	h		;save it for test below, send to seldsk
+	xchg
+	call	selectdisk	;recall dlog vector
+	pop	h
+	cz	sel_error	;returns true if select ok
+	;is the disk logged in?
+	mov	a,l		;return if bit is set
+	rar
+	rc
+	;disk not logged in, set bit and initialize
+	lhld	dlog		;call ready
+	mov	c,l
+	mov	b,h
+	call	set_cdisk	;dlog=set_cdisk(dlog)
+	shld	dlog
+	;jmp	initialize
+	;ret
+
+initialize:
+	;initialize the current disk
+	;lret = false ;set to true if $ file exists
+	;compute the length of the allocation vector - 2
+	lhld	maxall		;perform maxall/8
+	mvi	c,3
+	;number of bytes in alloc vector is (maxall/8)+1
+	call	hlrotr		;HL = maxall/8+1
+	inx	h
+	mov	b,h		;count down BC til zero
+	mov	c,l
+	lhld	alloca		;base of allocation vector
+	;fill the allocation vector with zeros
+initial0:
+	mvi	m,0		;alloc(i)=0
+	inx	h
+	dcx	b		;count length down
+	mov	a,b
+	ora	c
+	jnz	initial0
+	;set the reserved space for the directory
+	lhld	dirblk
+	xchg
+	lhld	alloca		;HL=.alloc()
+	mov	m,e		;sets reserved directory blks
+	inx	h
+	mov	m,d
+	;allocation vector initialized, home disk
+	call	home
+        ;cdrmax = 3 (scans at least one directory record)
+	lhld	cdrmaxa
+	mvi	m,3
+	inx	h
+	mvi	m,0
+	;cdrmax = 0000
+	call	set_end_dir	;dcnt = enddir
+	;read directory entries and check for allocated storage
+initial2:
+	mvi	c,_true
+	call	read_dir
+	call	end_of_dir	;return if end of directory
+	rz
+	;not end of directory, valid entry?
+	call	getdptra	;HL = buffa + dptr
+	mvi	a,empty
+	cmp	m
+	jz	initial2	;go get another item
+	;not empty, user code the same?
+	lda	usrcode
+	cmp	m
+	jnz	pdollar
+	;same user code, check for '$' submit
+	inx	h		;first character
+	mov	a,m
+	sui	'$'		;dollar file?
+	jnz	pdollar
+	;dollar file found, mark in lret
+	dcr	a		;lret = 255
+	sta	lret
+pdollar:
+	;now scan the disk map for allocated blocks
+	mvi	c,1		;set to allocated
+	call	scandm
+	call	setcdr		;set cdrmax to dcnt
+	jmp	initial2	;for another entry
+
+
+reselect:
+	;check current fcb to see if reselection necessary
+	mvi	a,_true		;mark possible reselect
+	sta	resel
+	lhld	info		;drive select code
+	mov	a,m
+	ani	11111b		;non zero is auto drive select
+	dcr	a		;drive code normalized to 0..30, or 255
+	sta	linfo		;save drive code
+	cpi	30
+	jnc	noselect
+	;auto select function, save curdsk
+	lda	curdsk		;olddsk=curdsk
+	sta	olddsk
+	mov	a,m		;save drive code
+	sta	fcbdsk
+	ani	11100000b	;preserve hi bits
+	mov	m,a
+	call	curselect
+noselect:
+	;set user code
+	lda	usrcode		;0...31
+	lhld	info
+	ora	m
+	mov	m,a
+	ret
+
+;	individual function handlers
+func12:
+	;return version number
+	mvi	a,dvers		;lret = dvers (high = 00)
+	jmp	sta_ret
+;	ret ;jmp goback
+
+func13:
+	;reset disk system - initialize to disk 0
+	lxi	h,0
+	shld	rodsk
+	shld	dlog
+	xra	a		;note that usrcode remains unchanged
+	sta	curdsk
+	lxi	h,tbuff		;dmaad = tbuff
+	shld	dmaad
+        call	setdata		;to data dma address
+	jmp	select
+	;ret ;jmp goback
+
+func14	equ	curselect
+	;select disk info
+	;ret ;jmp goback
+
+func15:
+	;open file
+	call	clrmodnum	;clear the module number
+	call	reselect
+	;jmp	open
+	;ret ;jmp goback
+
 open:
 	;search for the directory entry, copy to fcb
 	mvi	c,namlen
@@ -1938,6 +2236,13 @@ mergezero:
 	dcx	h
 	ret
 
+
+func16:
+	;close file
+	call	reselect
+	;jmp	close
+	;ret ;jmp goback
+	
 close:
 	;locate the directory element and re-write it
 	xra	a
@@ -2041,107 +2346,76 @@ mergerr:
 	dcr	m
 	ret
 
-make:
-	;create a new file by creating a directory entry
-	;then opening the file
-	call	check_write	;may be write protected
-	lhld	info		;save fcb address, look for e5
-	push	h
-	lxi	h,efcb		;info = .empty
-	shld	info
-	mvi	c,1		;length 1 match on empty entry
+func17:
+	;search for first occurrence of a file
+	mvi	c,0		;length assuming '?' true
+	xchg			;was lhld info		
+	mov	a,m		;no reselect if ?
+	cpi	'?'
+	jz	qselect		;skip reselect if so
+	;normal search
+	call	getexta
+	mov	a,m
+	cpi	'?'
+	cnz	clrmodnum	;module number zeroed
+	call	reselect
+	mvi	c,namlen
+qselect:
 	call	search
-	call	end_of_dir	;zero flag set if no space
-	pop	h		;recall info address
-	shld	info		;in case we return here
-	rz			;return with error condition 255 if not found
-	xchg			;DE = info address
-	;clear the remainder of the fcb
-	lxi	h,namlen	;HL=.fcb(namlen)
-	dad	d
-	mvi	c,fcblen-namlen	;number of bytes to fill
-	xra	a		;clear accumulator to 00 for fill
-make0:
-	mov	m,a
-	inx	h
-	dcr	c
-	jnz	make0
-	lxi	h,ubytes	;HL = .fcb(ubytes)
-	dad	d
-	mov	m,a		;fcb(ubytes) = 0
-	call	setcdr		;may have extended the directory
-	;now copy entry to the directory
-	call	copy_fcb
-	;and set the file write flag to "1"
-	jmp	setfwf
+	;jmp	dir_to_user	;copy directory entry to user
+	;ret ;jmp goback
+
+dir_to_user:
+	;copy the directory entry to the user buffer
+	;after call to search or searchn by user code
+	lhld	buffa		;source is directory buffer
+	xchg
+	lhld	dmaad		;destination is user dma address
+	mvi	c,recsiz	;copy entire record
+	;jmp	move
 	;ret
 
-open_reel:
-	;close the current extent, and open the next one
-	;if possible.  RMF is true if in read mode
-	xra	a		;set true if actually copied
-	sta	fcb_copied
-	call	close		;close current extent
-	;lret remains at enddir if we cannot open the next ext
-	call	end_of_dir	;return if end
+move:
+	;move data length of length C from source DE to
+	;destination given by HL
+	inr	c		;in case it is zero
+move0:
+	dcr	c		;more to move
 	rz
-	;increment extent number
-	lhld	info		;HL=.fcb(extnum)
-	lxi	b,extnum
-	dad	b
-	mov	a,m		;fcb(extnum)=++1
-	inr	a
-	ani	maxext
+	ldax	d		;one byte moved
 	mov	m,a
-	jz	open_mod	;move to next module if zero
-	;may be in the same extent group
-	mov	b,a
-	lda	extmsk
-	ana	b
-	;if result is zero, then not in the same group
-	lxi	h,fcb_copied	;true if the fcb was copied to directory
-	ana	m		;produces a 00 in accumulator if not written
-	jz	open_reel0	;go to next physical extent
-	;result is non zero, so we must be in same logical ext
-	jmp	open_reel1	;to copy fcb information
-open_mod:
-	;extent number overflow, go to next module
-	lxi	b,(modnum-extnum)	;HL=.fcb(modnum)
-	dad	b
-	inr	m		;fcb(modnum)=++1
-	;module number incremented, check for overflow
-	mov	a,m		;mask high order bits
-	ani	maxmod
-	jz	open_r_err	;cannot overflow to zero
-	;otherwise, ok to continue with new module
-open_reel0:
-	mvi	c,namlen	;next extent found?
-	call	search
-	call	end_of_dir
-	jnz	open_reel1
-	;end of file encountered
-	lda	rmf		;0ffh becomes 00 if read
-	inr	a
-	jz	open_r_err	;sets lret = 1
-	;try to extend the current file
-	call	make
-	;cannot be end of directory
-	call	end_of_dir
-	jz	open_r_err	;with lret = 1
-	jmp	open_reel2
-open_reel1:
-	;not end of file, open
-	call	open_copy
-open_reel2:
-	call	getfcb		;set parameters
-	xra	a		;lret = 0
+	inx	d		;to next byte
+	inx	h
+	jmp	move0
+
+func18:
+	;search for next occurrence of a file name
+	lhld	searcha
+	shld	info
+	call	reselect
+	call	searchn
+	jmp	dir_to_user	;copy directory entry to user
+	;ret ;jmp goback
+
+func19:
+	;delete a file
+	call	reselect
+	call	delete
+	;jmp	copy_dirloc
+	;ret ;jmp goback
+	
+copy_dirloc:
+	;copy directory location to lret following
+	;delete, rename, ... ops
+	lda	dirloc
 	jmp	sta_ret
-;	ret ;with lret = 0
-open_r_err:
-	;cannot move to next extent of this file
-	call	setlret1	;lret = 1
-	jmp	setfwf		;ensure that it will not be closed
-	;ret
+;	ret
+
+func20:
+	;read a file
+	call	reselect
+	;jmp	seqdiskread				;
+	 ;jmp goback
 
 seqdiskread:
 	;sequential disk read operation
@@ -2187,6 +2461,12 @@ diskeof:
 	jmp	setlret1	;lret = 1
 	;ret
 
+func21:
+	;write a file
+	call	reselect
+	;jmp	seqdiskwrite			;
+	 ;jmp goback
+	 
 seqdiskwrite:
 	;sequential disk write
 	mvi	a,1
@@ -2371,386 +2651,47 @@ diskwr3:
 	jmp	setfcb ;replace parameters
 	;ret
 
-rseek:
-	;random access seek operation, C=0ffh if read mode
-	;fcb is assumed to address an active file control block
-	;(modnum has been set to 1100_0000b if previous bad seek)
-	xra	a		;marked as random access operation
-	sta	seqio
-rseek1:
-	push	b		;save r/w flag
-	lhld	info		;DE will hold base of fcb
-	xchg
-	lxi	h,ranrec	;HL=.fcb(ranrec)
-	dad	d
-	mov	a,m		;record number
-	ani	7fh
-	push	psw
-	mov	a,m		;cy=lsb of extent#
-	ral
-	inx	h		;A=ext#
-	mov	a,m
-	ral
-	ani	11111b
-	mov	c,a		;C holds extent number, record stacked
-	mov	a,m		;mod#
-	rar
-	rar
-	rar
-	rar
-	ani	1111b
-	mov	b,a		;B holds module#, C holds ext#
-	pop	psw		;recall sought record #
-	;check to insure that high byte of ran rec = 00
-	inx	h		;l=high byte (must be 00)
-	mov	l,m
-	inr	l		;zero flag, l=6
-	dcr	l
-	mvi	l,6
-	;produce error 6, seek past physical eod
-	jnz	seekerr
-	;otherwise, high byte = 0, A = sought record
-	lxi	h,nxtrec	;HL = .fcb(nxtrec)
-	dad	d
-	mov	m,a		;sought rec# stored away
-	;arrive here with B=mod#, C=ext#, DE=.fcb, rec stored
-	;the r/w flag is still stacked.  compare fcb values
-	lxi	h,extnum	;A=seek ext#
-	dad	d
-	mov	a,c
-	sub	m		;tests for = extents
-	jnz	ranclose
-	;extents match, check mod#
-	lxi	h,modnum	;B=seek mod#
-	dad	d
-	mov	a,b
-	;could be overflow at eof, producing module#
-	;of 90H or 10H, so compare all but fwf
-	sub	m		;same?
-	ani	7fh
-	jz	seekok
-ranclose:
-	push	b		;save seek mod#,ext#, .fcb
-	push	d
-	call	close		;current extent closed
-	pop	d		;recall parameters and fill
-	pop	b
-	mvi	l,3		;cannot close error #3
-	lda	lret
-	inr	a
-	jz	badseek
-	lxi	h,extnum	;fcb(extnum)=ext#
-	dad	d
-	mov	m,c
-	lxi	h,modnum	;fcb(modnum)=mod#
-	dad	d
-	mov	m,b
-	call	open		;is the file present?
-	lda	lret		;open successful?
-	inr	a
-	jnz	seekok
-	;cannot open the file, read mode?
-	pop	b		;r/w flag to c (=0ffh if read)
-	push	b		;everyone expects this item stacked
-	mvi	l,4		;seek to unwritten extent #4
-	inr	c		;becomes 00 if read operation
-	jz	badseek		;skip to error if read operation
-	;write operation, make new extent
-	call	make
-	mvi	l,5		 ;cannot create new extent #5
-	lda	lret		;no dir space
-	inr	a
-	jz	badseek
-	;file make operation successful
-seekok:
-	pop	b		;discard r/w flag
-	xra	a		;with zero set
-	jmp	sta_ret
-badseek:
-	;fcb no longer contains a valid fcb, mark
-	;with 1100_000b in modnum field so that it
-	;appears as overflow with file write flag set
-	push	h		;save error flag
-	call	getmodnum	;HL = .modnum
-	mvi	m,11000000b
-	pop	h		;and drop through
-seekerr:
-	pop	b		;discard r/w flag
-	mov	a,l		;lret=#, nonzero
-	sta	lret
-	;setfwf returns non-zero accumulator for err
-	jmp	setfwf		;flag set, so subsequent close ok
-	;ret
-
-randiskread:
-	;random disk read operation
-	mvi	c,_true		;marked as read operation
-	call	rseek
-	cz	diskread	;if seek successful
-	ret
-
-randiskwrite:
-	;random disk write operation
-	mvi	c,_false	;marked as write operation
-	call	rseek
-	cz	diskwrite	;if seek successful
-	ret
-
-compute_rr:
-	;compute random record position for getfilesize/setrandom
-	xchg
-	dad	d
-	;DE=.buf(dptr) or .fcb(0), HL = .f(nxtrec/reccnt)
-	mov	c,m		;BC = 0000 0000 ?rrr rrrr
-	mvi	b,0
-	lxi	h,extnum	;A=e000 0000
-	dad	d
-	mov	a,m
-	rrc
-	ani	80h
-	add	c
-	mov	c,a
-	mvi	a,0
-	adc	b
-	mov	b,a
-	;BC = 0000 000? errrr rrrr
-	mov	a,m
-	rrc
-	ani	0fh
-	add	b
-	mov	b,a
-	;BC = 000? eeee errrr rrrr
-	lxi	h,modnum	;A=XXX? mmmm
-	dad	d
-	mov	a,m
-	add	a		;cy=? A=mmmm 0000
-	add	a
-	add	a
-	add	a
-	push	psw
-	add	b
-	mov	b,a
-	;cy=?, BC = mmmm eeee errr rrrr
-	push	psw		;possible second carry
-	pop	h		;cy = lsb of L
-	mov	a,l		;cy = lsb of A
-	pop	h		;cy = lsb of L
-	ora	l		;cy/cy = lsb of A
-	ani	1		;A = 0000 000? possible carry-out
-	ret
-
-getfilesize:
-	;compute logical file size for current fcb
-	mvi	c,extnum
-	call	search
-	;zero the receiving ranrec field
-	lhld	info		;save position
-	lxi	d,ranrec
-	dad	d
-	push	h
-	mov	m,d		;=00 00 00
-	inx	h
-	mov	m,d
-	inx	h
-	mov	m,d
-getsize:
-	call	end_of_dir
-	jz	setsize
-	;current fcb addressed by dptr
-	call	getdptra	;ready for compute size
-	lxi	d,reccnt
-	call	compute_rr
-	;A=0000 000? BC = mmmm eeee errr rrrr
-	;compare with memory, larger?
-	pop	h		;recall, replace .fcb(ranrec)
-	push	h
-	mov	e,a		;save cy
-	mov	a,c		;ls byte
-	sub	m
-	inx	h
-	mov	a,b		;middle byte
-	sbb	m
-	inx	h
-	mov	a,e		;carry if .fcb(ranrec) > directory
-	sbb	m
-	jc	getnextsize	;for another try
-	;fcb is less or equal, fill from directory
-	mov	m,e
-	dcx	h
-	mov	m,b
-	dcx	h
-	mov	m,c
-getnextsize:
-	call	searchn
-	jmp	getsize
-setsize:
-	pop	h		;discard .fcb(ranrec)
-	ret
-
-setrandom:
-	;set random record from the current file control block
-	lhld	info		;ready params for computesize
-	lxi	d,nxtrec
-	call	compute_rr	;DE=info, A=cy, BC=mmmm eeee errr rrrr
-	lxi	h,ranrec	;HL = .fcb(ranrec)
-	dad	d
-	mov	m,c		;to ranrec
-	inx	h
-	mov	m,b
-	inx	h
-	mov	m,a
-	ret
-
-select:
-	;select disk info for subsequent input or output ops
-	lhld	dlog
-	lda	curdsk
-	mov	c,a
-	call	hlrotr
-	push	h		;save it for test below, send to seldsk
-	xchg
-	call	selectdisk	;recall dlog vector
-	pop	h
-	cz	sel_error	;returns true if select ok
-	;is the disk logged in?
-	mov	a,l		;return if bit is set
-	rar
-	rc
-	;disk not logged in, set bit and initialize
-	lhld	dlog		;call ready
-	mov	c,l
-	mov	b,h
-	call	set_cdisk	;dlog=set_cdisk(dlog)
-	shld	dlog
-	jmp	initialize
-	;ret
-
-curselect:
-	lda	linfo		;skip if linfo=curdsk
-	lxi	h,curdsk
-	cmp	m
-	rz
-	mov	m,a		;curdsk=info
-	jmp	select
-	;ret
-
-reselect:
-	;check current fcb to see if reselection necessary
-	mvi	a,_true		;mark possible reselect
-	sta	resel
-	lhld	info		;drive select code
-	mov	a,m
-	ani	11111b		;non zero is auto drive select
-	dcr	a		;drive code normalized to 0..30, or 255
-	sta	linfo		;save drive code
-	cpi	30
-	jnc	noselect
-	;auto select function, save curdsk
-	lda	curdsk		;olddsk=curdsk
-	sta	olddsk
-	mov	a,m		;save drive code
-	sta	fcbdsk
-	ani	11100000b	;preserve hi bits
-	mov	m,a
-	call	curselect
-noselect:
-	;set user code
-	lda	usrcode		;0...31
-	lhld	info
-	ora	m
-	mov	m,a
-	ret
-
-;	individual function handlers
-func12:
-	;return version number
-	mvi	a,dvers		;lret = dvers (high = 00)
-	jmp	sta_ret
-;	ret ;jmp goback
-
-func13:
-	;reset disk system - initialize to disk 0
-	lxi	h,0
-	shld	rodsk
-	shld	dlog
-	xra	a		;note that usrcode remains unchanged
-	sta	curdsk
-	lxi	h,tbuff		;dmaad = tbuff
-	shld	dmaad
-        call	setdata		;to data dma address
-	jmp	select
-	;ret ;jmp goback
-
-func14	equ	curselect
-	;select disk info
-	;ret ;jmp goback
-
-func15:
-	;open file
-	call	clrmodnum	;clear the module number
-	call	reselect
-	jmp	open
-	;ret ;jmp goback
-
-func16:
-	;close file
-	call	reselect
-	jmp	close
-	;ret ;jmp goback
-
-func17:
-	;search for first occurrence of a file
-	mvi	c,0		;length assuming '?' true
-	xchg			;was lhld info		
-	mov	a,m		;no reselect if ?
-	cpi	'?'
-	jz	qselect		;skip reselect if so
-	;normal search
-	call	getexta
-	mov	a,m
-	cpi	'?'
-	cnz	clrmodnum	;module number zeroed
-	call	reselect
-	mvi	c,namlen
-qselect:
-	call	search
-	jmp	dir_to_user	;copy directory entry to user
-	;ret ;jmp goback
-
-func18:
-	;search for next occurrence of a file name
-	lhld	searcha
-	shld	info
-	call	reselect
-	call	searchn
-	jmp	dir_to_user	;copy directory entry to user
-	;ret ;jmp goback
-
-func19:
-	;delete a file
-	call	reselect
-	call	delete
-	jmp	copy_dirloc
-	;ret ;jmp goback
-
-func20:
-	;read a file
-	call	reselect
-	jmp	seqdiskread				;
-	 ;jmp goback
-
-func21:
-	;write a file
-	call	reselect
-	jmp	seqdiskwrite			;
-	 ;jmp goback
-
 func22:
 	;make a file
 	call	clrmodnum
 	call	reselect
-	jmp	make
+	;jmp	make
 	;ret ;jmp goback
+
+make:
+	;create a new file by creating a directory entry
+	;then opening the file
+	call	check_write	;may be write protected
+	lhld	info		;save fcb address, look for e5
+	push	h
+	lxi	h,efcb		;info = .empty
+	shld	info
+	mvi	c,1		;length 1 match on empty entry
+	call	search
+	call	end_of_dir	;zero flag set if no space
+	pop	h		;recall info address
+	shld	info		;in case we return here
+	rz			;return with error condition 255 if not found
+	xchg			;DE = info address
+	;clear the remainder of the fcb
+	lxi	h,namlen	;HL=.fcb(namlen)
+	dad	d
+	mvi	c,fcblen-namlen	;number of bytes to fill
+	xra	a		;clear accumulator to 00 for fill
+make0:
+	mov	m,a
+	inx	h
+	dcr	c
+	jnz	make0
+	lxi	h,ubytes	;HL = .fcb(ubytes)
+	dad	d
+	mov	m,a		;fcb(ubytes) = 0
+	call	setcdr		;may have extended the directory
+	;now copy entry to the directory
+	call	copy_fcb
+	;and set the file write flag to "1"
+	jmp	setfwf
+	;ret
 
 func23:
 	;rename a file
@@ -2807,6 +2748,7 @@ func31:
 sthl_ret:
  	shld	aret
 	ret			;jmp goback
+
 func32:
 	;set user code
         lda	linfo
@@ -2816,6 +2758,7 @@ func32:
 	lda	usrcode		;lret=usrcode
 	jmp	sta_ret
 ;		ret ;jmp goback
+
 setusrcode:
 	ani	1fh
 	sta	usrcode
@@ -2824,24 +2767,89 @@ setusrcode:
 func33:
 	;random disk read operation
 	call	reselect
-	jmp	randiskread	;to perform the disk read
+	;jmp	randiskread	;to perform the disk read
 	;ret ;jmp goback
 ;
+randiskread:
+	;random disk read operation
+	mvi	c,_true		;marked as read operation
+	call	rseek
+	cz	diskread	;if seek successful
+	ret
+
 func34:
 	;random disk write operation
 	call	 reselect
-	jmp	randiskwrite	;to perform the disk write
+	;jmp	randiskwrite	;to perform the disk write
 	;ret ;jmp goback
 ;
+randiskwrite:
+	;random disk write operation
+	mvi	c,_false	;marked as write operation
+	call	rseek
+	cz	diskwrite	;if seek successful
+	ret
+
 func35:
 	;return file size (0-65536)
 	call	reselect
-	jmp	getfilesize
+	;jmp	getfilesize
 	;ret ;jmp goback
+
+getfilesize:
+	;compute logical file size for current fcb
+	mvi	c,extnum
+	call	search
+	;zero the receiving ranrec field
+	lhld	info		;save position
+	lxi	d,ranrec
+	dad	d
+	push	h
+	mov	m,d		;=00 00 00
+	inx	h
+	mov	m,d
+	inx	h
+	mov	m,d
+getsize:
+	call	end_of_dir
+	jz	setsize
+	;current fcb addressed by dptr
+	call	getdptra	;ready for compute size
+	lxi	d,reccnt
+	call	compute_rr
+	;A=0000 000? BC = mmmm eeee errr rrrr
+	;compare with memory, larger?
+	pop	h		;recall, replace .fcb(ranrec)
+	push	h
+	mov	e,a		;save cy
+	mov	a,c		;ls byte
+	sub	m
+	inx	h
+	mov	a,b		;middle byte
+	sbb	m
+	inx	h
+	mov	a,e		;carry if .fcb(ranrec) > directory
+	sbb	m
+	jc	getnextsize	;for another try
+	;fcb is less or equal, fill from directory
+	mov	m,e
+	dcx	h
+	mov	m,b
+	dcx	h
+	mov	m,c
+getnextsize:
+	call	searchn
+	jmp	getsize
+	
+setsize:
+	pop	h		;discard .fcb(ranrec)
+	ret
+
 ;
 func36	equ	setrandom			;
 	;set random record
 	;ret ;jmp goback
+
 func37:
 ;
 	lhld	info

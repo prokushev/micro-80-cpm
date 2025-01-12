@@ -33,11 +33,11 @@ p2bin obj\bdosCD00.p bin\bdosCD00.bin
 
 bitmap bin\bdos.bin bin\bdosCD00.bin inc\bdosbitmap.inc
 
-asw -qLU -i inc src\ccp\ccp.asm -olist log\ccp.lst -o obj\ccp.p
+asw -qLU -i inc -D noserial=1 src\ccp\ccp.asm -olist log\ccp.lst -o obj\ccp.p
 p2bin obj\ccp.p bin\ccp.bin
 
 
-asw -qLU -i inc -D CPP_ADDR=0C500H -D BDOS_ADDR=0CD00H -D BIOS_ADDR=0DB00H src\ccp\ccp.asm -olist log\ccpC500.lst -o obj\ccpC500.p
+asw -qLU -i inc -D noserial=1 -D CPP_ADDR=0C500H -D BDOS_ADDR=0CD00H -D BIOS_ADDR=0DB00H src\ccp\ccp.asm -olist log\ccpC500.lst -o obj\ccpC500.p
 p2bin obj\ccpC500.p bin\ccpC500.bin
 
 bitmap bin\ccp.bin bin\ccpC500.bin inc\cppbitmap.inc
