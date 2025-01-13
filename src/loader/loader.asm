@@ -408,47 +408,44 @@ ENDC	EQU		$
 	; Продолжение образа квазидиска - директория и данные.
 	; Начало каталога на первой дорожке, после зарезервированных.
 
-	;CP/M 2.2 directory
+	; Директория CP/M 2.2
 	;
-	;The CP/M 2.2 directory has only one type of entry:
+	; Директория CP/M 2.2 имеет только один тип записи:
 	;
-	;UU F1 F2 F3 F4 F5 F6 F7 F8 T1 T2 T3 EX S1 S2 RC   .FILENAMETYP....
-	;AL AL AL AL AL AL AL AL AL AL AL AL AL AL AL AL   ................
+	; UU F1 F2 F3 F4 F5 F6 F7 F8 T1 T2 T3 EX S1 S2 RC   .FILENAMETYP....
+	; AL AL AL AL AL AL AL AL AL AL AL AL AL AL AL AL   ................
 	;
-	;UU = User number. 0-15 (on some systems, 0-31). The user number allows multiple
-	;    files of the same name to coexist on the disc. 
-	;     User number = 0E5h => File deleted
-	;Fn - filename
-	;Tn - filetype. The characters used for these are 7-bit ASCII.
-	;       The top bit of T1 (often referred to as T1') is set if the file is 
-	;     read-only.
-	;       T2' is set if the file is a system file (this corresponds to "hidden" on 
-	;     other systems). 
-	;EX = Extent counter, low byte - takes values from 0-31
-	;S2 = Extent counter, high byte.
+	; UU = User number - Номер области пользователя. 0-15 (в некоторых реализациях системы, 0-31).
+	;      Номер области позволяет существование нескольких файлов с одинаковыми именами на диске. 
+	;      User number = 0E5h => Файл удален
+	; Fn - Filename - имя файла
+	; Tn - FyleType - тип файла. Используется 7-бит ASCII.
+	;        Старший бит T1 (часто упоминается как T1') установлен для файлов "только для чтения".
+	;        T2' установлен для системных файлов (соответствует атрибуту "скрытого" файла в
+	;      других системах).
+	; EX = Extent counter - номер экстента, младший байт - принимает значения 0-31
+	; S2 = Номер экстента, старший байт.
 	;
-	;      An extent is the portion of a file controlled by one directory entry.
-	;    If a file takes up more blocks than can be listed in one directory entry,
-	;    it is given multiple entries, distinguished by their EX and S2 bytes. The
-	;    formula is: Entry number = ((32*S2)+EX) / (exm+1) where exm is the 
-	;    extent mask value from the Disc Parameter Block.
+	;       Экстент - это часть файла, контролируемая одной записью директории.
+	;     Если файл состоит из большего числа блоков, чем может быть описано в одной записи в
+	;     директории, он получает несколько записей, отличающихся байтами EX и S2.
+	;     Формула: Номер записи = ((32*S2)+EX) / (exm+1), где exm - значение маски экстента из DPB.
 	;
-	;S1 - reserved, set to 0.
-	;RC - Number of records (1 record=128 bytes) used in this extent, low byte.
-	;    The total number of records used in this extent is
+	; S1 - зарезервировано, устанавливается в 0.
+	; RC - Число записей (1 запись=128 байт) занятых этим экстентом, младший байт.
+	;     Полное число записей занятых экстентом равно:
 	;
-	;    (EX & exm) * 128 + RC
+	;     (EX & exm) * 128 + RC
 	;
-	;    If RC is >=80h, this extent is full and there may be another one on the 
-	;    disc. File lengths are only saved to the nearest 128 bytes.
+	;     Если RC равно 80h, этот экстент полный и может существовать еще один на этом диске.
+	;     Размеры файлов округляются в сторону ближайших 128 байт.
 	;
-	;AL - Allocation. Each AL is the number of a block on the disc. If an AL
-	;    number is zero, that section of the file has no storage allocated to it
-	;    (ie it does not exist). For example, a 3k file might have allocation 
-	;    5,6,8,0,0.... - the first 1k is in block 5, the second in block 6, the 
-	;    third in block 8.
-	;     AL numbers can either be 8-bit (if there are fewer than 256 blocks on the
-	;    disc) or 16-bit (stored low byte first). 
+	; AL - Allocation - расположение (карта расположения блоков файла). Каждый байт AL - это номер
+	;     блока на диске. Если AL содержит ноль, то он не указывает на какой-либо блок (то есть 
+	;     соответствующий блок не существует). Например 3k файл может иметь следующее расположение:
+	;     5,6,8,0,0.... - первые 1k - в блоке 5, вторые - в блоке 6, третьи - в блоке 8.
+	;      AL-номера могут быть либо 8-битными (если диск содержит менее 256 блоков), либо 16-
+	;     битными (первым хранится младший байт).
 
 	; Макрос для формирования записи каталога CP/M
 FILE	MACRO	user, filename, extension, ex, s2, rc
