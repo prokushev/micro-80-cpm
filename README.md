@@ -192,3 +192,7 @@ BIOS:
 ! 81–FF ! Bytes ! Command tail (everything after the program name)           !
 +-------+-------+------------------------------------------------------------+
 ```
+
+### Библиотека diskdef
+
+[docs/diskdef.md](diskdef)
