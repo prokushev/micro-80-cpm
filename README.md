@@ -195,4 +195,4 @@ BIOS:
 
 ### Библиотека diskdef
 
-[docs/diskdef.md](diskdef)
+[diskdef](docs/diskdef.md)
