@@ -270,7 +270,7 @@ HOME:	LD	C,00h
 
 ; SETTRK (п/п 10)
 ;
-;Set the track in BC - 0 based.
+; Set the track in BC - 0 based.
 ; 
 
 SETTRK:	
