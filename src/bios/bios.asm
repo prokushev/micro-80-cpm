@@ -364,7 +364,7 @@ LDB59:	LD		HL,TRACK
 ;The conclusion (based on examining the BDOS source) 
 ;was that it is a word.
 
-SETSEC:	LD		HL,SECTOR
+SETSEC:	LD	HL,SECTOR
 	LD		(HL),C
 	RET
 

@@ -36,13 +36,14 @@ bitmap bin\bdos.bin bin\bdosCD00.bin inc\bdosbitmap.inc
 asw -qLU -i inc -D noserial=1 src\ccp\ccp.asm -olist log\ccp.lst -o obj\ccp.p
 p2bin obj\ccp.p bin\ccp.bin
 
-
 asw -qLU -i inc -D noserial=1 -D CPP_ADDR=0C500H -D BDOS_ADDR=0CD00H -D BIOS_ADDR=0DB00H src\ccp\ccp.asm -olist log\ccpC500.lst -o obj\ccpC500.p
 p2bin obj\ccpC500.p bin\ccpC500.bin
 
 bitmap bin\ccp.bin bin\ccpC500.bin inc\cppbitmap.inc
 
 asw -qLU -i inc src\ch\ch.asm -olist log\ch.lst -o obj\ch.p
+p2bin obj\ch.p bin\bin.bin
+asw -qU -i bin src\comheader\comheader.asm -o obj\ch.p
 p2bin obj\ch.p com\ch.com
 
 asw -qLU -i inc -i bin -i com src\loader\loader.asm -olist log\loader.lst -o obj\loader.p
@@ -52,11 +53,14 @@ p2bin obj\loader.p bin\loader.bin
 :p2bin obj\chdisk.p com\chdisk.com
 
 asw -qLU src\dump\dump.asm -olist log\dump.lst -o obj\dump.p
+p2bin obj\dump.p bin\bin.bin
+asw -qU -i bin src\comheader\comheader.asm -o obj\dump.p
 p2bin obj\dump.p com\dump.com
 
 asw -qLU src\romdisk\romdisk.asm -olist log\romdisk.lst -o obj\romdisk.p
+p2bin obj\romdisk.p bin\bin.bin
+asw -qU -i bin src\comheader\comheader.asm -o obj\romdisk.p
 p2bin obj\romdisk.p com\romdisk.com
-
 
 SET :F1:=src\stat\
 SET :F2:=obj
@@ -162,4 +166,4 @@ bin2ch com\power.com rk\power.rk
 bin2ch com\pwretool.com rk\pwretool.rk
 bin2ch com\basic.com rk\basic.rk
 
-:asw -1l comheader.asm > comheader.lst
+:asw -1 comheader.asm > comheader.lst
